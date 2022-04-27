@@ -2,4 +2,5 @@ extends layout
 
 block content
   h1= title
-  p HELLO WORLD
+  each elem,i in teams
+    p !{elem.team_id} - !{elem.location} !{elem.name}
