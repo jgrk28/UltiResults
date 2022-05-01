@@ -2,5 +2,12 @@ extends layout
 
 block content
   h1= title
-  each elem,i in teams
-    p !{elem.team_id} - !{elem.location} !{elem.name}
+  h2= "Ongoing Tournaments"
+  each tournament,i in currentTournaments
+    p !{tournament.name} - !{tournament.location} from !{tournament.start_date} to !{tournament.end_date}
+  h2= "Upcoming Tournaments"
+  each tournament,i in upcomingTournaments
+    p !{tournament.name} - !{tournament.location} from !{tournament.start_date} to !{tournament.end_date}
+  h2= "Completed Tournaments"
+  each tournament,i in pastTournaments
+    p !{tournament.name} - !{tournament.location} from !{tournament.start_date} to !{tournament.end_date}
