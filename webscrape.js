@@ -1,6 +1,7 @@
 const axios = require('axios')
 const cheerio = require('cheerio');
 const { Client } = require('pg');
+const { DateTime } = require('luxon');
 
 // Division enum maps each division to its integer id
 class Division {
@@ -114,16 +115,15 @@ const formatGameInsert = async (tournamentId, date, time, team1, team2, division
 
 	//date is in the form 'DOW M(M)/D(D)' e.g. 'Sat 4/30'
 	const monthDay = date.split(" ")[1];
-	const [month, day] = monthDay.split("/");
-	const zeroIndexedMonth = parseInt(month, 10) - 1;
+	const [month, day] = monthDay.split("/").map(element => parseInt(element, 10));
 
 	//TODO adjust to timezone of tournament
 	//time is in the form 'H(H):MM AM/PM' e.g. '9:00 AM'
 	const time24h = convertTime12to24(time);
-	const [hours, minutes] = time24h.split(":");
+	const [hours, minutes] = time24h.split(":").map(element => parseInt(element, 10));
 
-	const databaseDate = new Date(currYear, zeroIndexedMonth, day, hours, minutes);
-	const databaseTime = databaseDate.toISOString().slice(0, 19);
+	const databaseDate = DateTime.local(currYear, month, day, hours, minutes, { zone: 'America/New_York' });
+	const databaseTime = databaseDate.toSQL();
 	return `INSERT INTO games (tournament_id, team1_id, team2_id, start_time) 
 	VALUES (${tournamentId}, ${team1Id}, ${team2Id}, '${databaseTime}')`;;
 }
