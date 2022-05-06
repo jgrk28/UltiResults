@@ -1,3 +1,5 @@
+//Auto generated file by create-react-app
+//Have not yet set up testing but this will probably be useful
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
