@@ -1,30 +1,22 @@
 import React from "react";
+import ExpandedTable from "./ExpandableTable";
+import Test from "./Test";
 
 //React component to display the current tournaments and their info
-//TODO make it possible to expand a tournament of interest
 class CurrentTournaments extends React.Component {
   render() {
+    const columnDescriptions = [
+      { display: 'Name', key: 'name'},
+      { display: 'Location', key: 'location'},
+      { display: 'Start', key: 'start_date'},
+      { display: 'End', key: 'end_date'}
+    ]
     return (
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Location</th>
-      <th>Start</th>
-      <th>End</th>
-    </tr>
-  </thead>
-  <tbody>
-  {this.props.tournamentData.map((row)=>{return (
-    <tr key={row.id}>
-      <td>{ row.name }</td>
-      <td>{ row.location }</td>
-      <td>{ row.start_date }</td>
-      <td>{ row.end_date }</td>
-    </tr>
-  )})}
-  </tbody>
-</table>
+      <ExpandedTable 
+        rowItems={this.props.tournamentData} 
+        columns={columnDescriptions} 
+        expansion={<Test/>} 
+      />
     )
   }
 }
