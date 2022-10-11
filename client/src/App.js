@@ -1,5 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import socketIOClient from "socket.io-client";
 
 import Navbar from "./Navbar";
 import CurrentTournaments from "./CurrentTournaments";
@@ -12,19 +13,64 @@ class App extends React.Component {
     super(props);
     this.state = { 
       tournamentData: [],
-      dataLoaded: false
+      dataLoaded: false,
+      newTweets: [],
     };
   }
 
+  streamTweets() {
+    let socket;
+    //TODO look into socket sending multiple connection requests
+    if (process.env.NODE_ENV === "development") {
+      socket = socketIOClient(
+        "http://localhost:9000/", { transports: ['websocket'] }
+      );
+    } else {
+      socket = socketIOClient("/", { transports: ['websocket'] });
+    }
+
+    socket.on("connect", () => {
+      console.log(`connected to server`);
+    });
+    socket.on("connect_error", (err) => {
+      console.log(`connect_error due to ${err.message}`);
+    });
+    
+    socket.on("tweet", (json) => {
+      console.log(json);
+      if (json.data) {
+        this.setState(prevState => ({
+          newTweets: [...prevState.newTweets, json]
+        }))
+      }
+    });
+    socket.on("heartbeat", (data) => {
+      console.log(data);
+      //dispatch({ type: "update_waiting" });
+    });
+    socket.on("error", (data) => {
+      console.log(data);
+      //dispatch({ type: "show_error", payload: data });
+    });
+    socket.on("authError", (data) => {
+      console.log("data =>", data);
+      //dispatch({ type: "add_errors", payload: [data] });
+    });
+  };
+
+  
   componentDidMount() {
     fetch("http://localhost:9000/")
       .then((res) => res.json())
       .then((json) => {
         this.setState({
           tournamentData: json,
-          dataLoaded: true
+          dataLoaded: true,
+          newTweets: [],
         });
     })
+
+    this.streamTweets();
   }
 
   render() {
@@ -61,10 +107,16 @@ class App extends React.Component {
             <Navbar />
             <Routes>
               <Route path="/" element=
-                {<CurrentTournaments tournamentData = {this.state.tournamentData.current} />}
+                {<CurrentTournaments 
+                  tournamentData = {this.state.tournamentData.current} 
+                  tweet = {this.state.newTweets[0]}
+                />}
               />
               <Route path="/current" element=
-                {<CurrentTournaments tournamentData = {this.state.tournamentData.current} />}
+                {<CurrentTournaments 
+                  tournamentData = {this.state.tournamentData.current} 
+                  tweet = {this.state.newTweets[0]}
+                />}
               />
               <Route path="/upcoming" element=
                 {<UpcomingTournaments tournamentData = {this.state.tournamentData.upcoming}  />}

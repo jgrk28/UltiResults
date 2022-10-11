@@ -1,6 +1,7 @@
 import React from "react";
 import ExpandedTable from "./ExpandableTable";
 import Test from "./Test";
+import Tweet from "./Tweet";
 
 //React component to display the current tournaments and their info
 class CurrentTournaments extends React.Component {
@@ -15,7 +16,7 @@ class CurrentTournaments extends React.Component {
       <ExpandedTable 
         rowItems={this.props.tournamentData} 
         columns={columnDescriptions} 
-        expansion={<Test/>} 
+        expansion={<Tweet json={this.props.tweet}/>} 
       />
     )
   }

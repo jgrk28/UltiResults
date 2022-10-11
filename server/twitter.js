@@ -1,47 +1,25 @@
 //The core of this code comes from https://github.com/twitterdev/Twitter-API-v2-sample-code
 const axios = require('axios');
-//Twitter API bearer token must first be set as an environmental variable
-const token = process.env.BEARER_TOKEN;
 
-const rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
-const streamURL = 'https://api.twitter.com/2/tweets/search/stream';
-
-// Filters which tweets to get
-// For testing using this account as it posts every 3 mins
-const rules = [{
-        'value': 'from:Every3Minutes',
-        'tag': 'live ulti results'
-    }
-];
-
-async function getAllRules() {
-    const response = await axios.get(rulesURL, {
-        headers: {
-            'authorization': `Bearer ${token}`
+async function streamTweets(socket) {
+    const rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
+    const streamURL = 'https://api.twitter.com/2/tweets/search/stream';
+    //Twitter API bearer token must first be set as an environmental variable
+    const token = process.env.BEARER_TOKEN;
+    
+    // Filters which tweets to get
+    // For testing using this account as it posts every 3 mins
+    const rules = [{
+            'value': 'from:Every3Minutes',
+            'tag': 'live ulti results'
         }
-    })
-
-    if (response.status !== 200) {
-        console.log("Error:", response.statusText, response.status)
-        throw new Error(response.data);
-    }
-
-    return (response.data);
-}
-
-async function deleteAllRules(rules) {
-
-    if (!Array.isArray(rules.data)) {
-        return null;
-    }
-
-    const ids = rules.data.map(rule => rule.id);
-
+    ];
     const data = {
-        "delete": {
-            "ids": ids
-        }
+      'add': rules
     }
+  
+    console.log("setting rules")
+
 
     const response = await axios.post(rulesURL, data, {
         headers: {
@@ -49,39 +27,25 @@ async function deleteAllRules(rules) {
             "authorization": `Bearer ${token}`
         }
     })
-
-    if (response.status !== 200) {
-        throw new Error(response.data);
-    }
-
-    return (response.data);
-
-}
-
-async function setRules() {
-
-    const data = {
-        'add': rules
-    }
-
-    const response = await axios.post(rulesURL, data, {
-        headers: {
-            "content-type": "application/json",
-            "authorization": `Bearer ${token}`
-        }
-    })
-
+  
     if (response.status !== 201) {
         throw new Error(response.data);
     }
-
-    return (response.data);
-
-}
-
-async function streamConnect(retryAttempt) {
-
-    const response = await axios.get(streamURL, {
+    console.log("rules successfully set")
+  
+  
+    let stream;
+  
+    const config = {
+      url: streamURL,
+      auth: {
+        bearer: token,
+      },
+      timeout: 31000,
+    };
+  
+    try {
+      const response = await axios.get(streamURL, {
         headers: {
             "User-Agent": "UltiResults",
             "Authorization": `Bearer ${token}`
@@ -89,64 +53,51 @@ async function streamConnect(retryAttempt) {
         params: { expansions: 'author_id' },
         timeout: 25000,
         responseType: 'stream'
-    });
-
-    const stream = response.data;
-
-    stream.on('data', data => { 
-        try {
+      });
+  
+      const stream = response.data;
+  
+      stream
+        .on("data", (data) => {
+          console.log("data incomming")
+          try {
             const json = JSON.parse(data);
-            console.log(json);
-            // A successful connection resets retry count.
-            retryAttempt = 0;
-        } catch (e) {
-            if (data.detail === "This stream is currently at the maximum allowed connection limit.") {
-                console.log(data.detail)
-                process.exit(1)
+            if (json.connection_issue) {
+              socket.emit("error", json);
+              reconnect(stream, socket, token);
             } else {
-                // Keep alive signal received. Do nothing.
+              if (json.data) {
+                socket.emit("tweet", json);
+                console.log("tweet sent")
+              } else {
+                socket.emit("authError", json);
+                console.log("error sent")
+              }
             }
-        }
-    })
-
-    stream.on('error', error => { 
-        if (error.code !== 'ECONNRESET') {
-            console.log(error.code);
-            process.exit(1);
-        } else {
-            // This reconnection logic will attempt to reconnect when a disconnection is detected.
-            // To avoid rate limits, this logic implements exponential backoff, so the wait time
-            // will increase if the client cannot reconnect to the stream. 
-            setTimeout(() => {
-                console.warn("A connection error occurred. Reconnecting...")
-                streamConnect(++retryAttempt);
-            }, 2 ** retryAttempt)
-        }
-    });
-
-    return stream;
-
+          } catch (e) {
+            socket.emit("heartbeat");
+          }
+        })
+        .on("error", (error) => {
+          // Connection timed out
+          socket.emit("error", errorMessage);
+          reconnect(stream, socket, token);
+        });
+    } catch (e) {
+      socket.emit("authError", e);
+    }
+}
+  
+const reconnect = async (stream, socket, token) => {
+    timeout++;
+    stream.abort();
+    await sleep(2 ** timeout * 1000);
+    streamTweets(socket, token);
 }
 
-
 (async () => {
-    let currentRules;
-
-    try {
-        // Gets the complete list of rules currently applied to the stream
-        currentRules = await getAllRules();
-
-        // Delete all rules. Comment the line below if you want to keep your existing rules.
-        await deleteAllRules(currentRules);
-
-        // Add rules to the stream. Comment the line below if you don't want to add new rules.
-        await setRules();
-
-    } catch (e) {
-        console.error(e);
-        process.exit(1);
-    }
-
     // Listen to the stream.
-    streamConnect(0);
+    //await streamTweets(socket);
 })();
+
+module.exports = { streamTweets };

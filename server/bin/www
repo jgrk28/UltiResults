@@ -4,9 +4,11 @@
  * Module dependencies.
  */
 
-var app = require('../app');
-var debug = require('debug')('myexpressapp:server');
-var http = require('http');
+const app = require('../app');
+const debug = require('debug')('myexpressapp:server');
+const http = require('http');
+const { Server } = require('socket.io');
+const { streamTweets } = require('../twitter');
 
 /**
  * Get port from environment and store in Express.
@@ -16,10 +18,25 @@ var port = normalizePort(process.env.PORT || '9000');
 app.set('port', port);
 
 /**
- * Create HTTP server.
+ * Create HTTP server that can accept websocket connections
  */
 
 var server = http.createServer(app);
+const io = new Server(server);
+
+/**
+ * When a new socket connection is made, create a stream to send tweets
+ * Since all connections should get all tweet updates no need to treat any sockets differently
+ */
+ io.on('connection', async (socket) => {
+  console.log("incomming connection")
+  try {
+    const token = process.env.BEARER_TOKEN;
+    const stream = await streamTweets(io, token);
+  } catch (e) {
+    socket.emit("authError", e);
+  }
+});
 
 /**
  * Listen on provided port, on all network interfaces.
