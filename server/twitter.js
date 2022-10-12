@@ -10,7 +10,7 @@ async function streamTweets(socket) {
     // Filters which tweets to get
     // For testing using this account as it posts every 3 mins
     const rules = [{
-            'value': 'from:Every3Minutes',
+            'value': 'from:Every3Minutes OR from:scores_ultimate',
             'tag': 'live ulti results'
         }
     ];
@@ -94,10 +94,5 @@ const reconnect = async (stream, socket, token) => {
     await sleep(2 ** timeout * 1000);
     streamTweets(socket, token);
 }
-
-(async () => {
-    // Listen to the stream.
-    //await streamTweets(socket);
-})();
 
 module.exports = { streamTweets };

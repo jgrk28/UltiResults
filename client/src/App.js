@@ -109,13 +109,13 @@ class App extends React.Component {
               <Route path="/" element=
                 {<CurrentTournaments 
                   tournamentData = {this.state.tournamentData.current} 
-                  tweet = {this.state.newTweets[0]}
+                  tweet = {this.state.newTweets.at(-1)}
                 />}
               />
               <Route path="/current" element=
                 {<CurrentTournaments 
                   tournamentData = {this.state.tournamentData.current} 
-                  tweet = {this.state.newTweets[0]}
+                  tweet = {this.state.newTweets.at(-1)}
                 />}
               />
               <Route path="/upcoming" element=
