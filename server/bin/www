@@ -8,7 +8,7 @@ const app = require('../app');
 const debug = require('debug')('myexpressapp:server');
 const http = require('http');
 const { Server } = require('socket.io');
-const { streamTweets } = require('../twitter');
+const TwitterManager = require('../TwitterManager')
 
 /**
  * Get port from environment and store in Express.
@@ -23,20 +23,10 @@ app.set('port', port);
 
 var server = http.createServer(app);
 const io = new Server(server);
-
-/**
- * When a new socket connection is made, create a stream to send tweets
- * Since all connections should get all tweet updates no need to treat any sockets differently
- */
- io.on('connection', async (socket) => {
-  console.log("incomming connection")
-  try {
-    const token = process.env.BEARER_TOKEN;
-    const stream = await streamTweets(io, token);
-  } catch (e) {
-    socket.emit("authError", e);
-  }
-});
+const token = process.env.BEARER_TOKEN;
+const twitter = new TwitterManager(io, token);
+twitter.addAccounts(new Set(['scores_ultimate', 'Every3Minutes']));
+twitter.startStream();
 
 /**
  * Listen on provided port, on all network interfaces.
