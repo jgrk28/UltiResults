@@ -80,10 +80,7 @@ class ExpandedTable extends Component {
                     <td className="row-expansion" />
                     <td colSpan="100%" className="row-expansion">
                         <br />
-                        {
-                            //Clones the given expansion to add the row item as a property
-                            React.cloneElement(this.props.expansion, { parentData: rowItem })
-                        }
+                            {this.props.children}
                         <br />
                     </td>
                 </tr>
