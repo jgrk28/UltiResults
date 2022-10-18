@@ -1,26 +1,26 @@
 const axios = require('axios');
+const Qs = require('qs');
 
 // Manages the twitter stream by adding and removing accounts
 // Emits all recived tweets on the socket given in the constructor
 class TwitterManager {
-	constructor(socket, token) {
+	constructor(socket, token, pool) {
 		this.socket = socket;
 		this.token = token;
-		this.accounts = new Set();
+		this.pool = pool;
+		this.accounts = new Map();
 		this.ruleId = 0;
 		// these should be static variable but that is giving an error
 		this.rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
 		this.streamURL = 'https://api.twitter.com/2/tweets/search/stream';
 	}
 
-	addAccounts(newAccounts) {
-		this.accounts = new Set([...this.accounts, ...newAccounts]);
+	addAccount(newAccount, teamId) {
+		this.accounts.set(newAccount, teamId);
 	}
 
-	removeAccounts(toRemove) {
-		toRemove.forEach((account) => {
-			this.accounts.delete(account);
-		});
+	removeAccount(toRemove) {
+		this.accounts.delete(toRemove);
 	}
 
 	// builds a rule to track all tweets from all accounts in this.accounts
@@ -28,7 +28,7 @@ class TwitterManager {
 		let ruleValue = "";
 		const numAccounts = this.accounts.size;
 		let count = 0;
-		this.accounts.forEach((account) => {
+		this.accounts.forEach((id, account) => {
 			ruleValue += "from:" + account;
 			count += 1;
 			if (count < numAccounts) {
@@ -170,7 +170,13 @@ class TwitterManager {
 					"User-Agent": "UltiResults",
 					"Authorization": `Bearer ${this.token}`
 				},
-				params: { expansions: 'author_id' },
+				params: { 
+					tweet: {fields: 'created_at'},
+					expansions: 'author_id' 
+				},
+				paramsSerializer: (params) => {
+					return Qs.stringify(params, {allowDots: true});
+				},
 				timeout: 25000,
 				responseType: 'stream'
 			});
@@ -189,6 +195,7 @@ class TwitterManager {
 							if (json.data) {
 								this.socket.emit("tweet", json);
 								console.log("tweet sent")
+								this.saveTweet(json);
 							} else {
 								this.socket.emit("authError", json);
 								console.log("error sent")
@@ -213,6 +220,19 @@ class TwitterManager {
 		stream.abort();
 		await sleep(2 ** timeout * 1000);
 		streamTweets(this.socket, this.token);
+	}
+
+	async saveTweet(tweet) {
+
+		//author_id is twitter defined
+		const author = tweet.includes.users[0].username;
+		const teamId = this.accounts.get(author);
+		const insertQuery = `INSERT INTO tweets(team_id, time, tweet) VALUES($1, $2, $3) RETURNING team_id`;
+		const insertValues = [teamId, tweet.data.created_at, tweet.data.text];
+		this.pool
+			.query(insertQuery, insertValues)
+  			.then(res => console.log(res.rows[0].teamId))
+  			.catch(err => console.error('Error executing query', err.stack))
 	}
 };
 

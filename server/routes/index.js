@@ -2,13 +2,12 @@ var express = require('express');
 const { DateTime } = require('luxon');
 var router = express.Router();
 
-const { Client } = require('pg');
-const database = new Client()
+const pool = require('../database');
 
 /* GET home page. */
 router.get('/', async (req, res, next) => {
   //Use env variables in launch.json to connect to db
-  await database.connect()
+  const client = await pool.connect();
 
   //Get current, past, and upcoming tournaments
   //TODO reformat date from database
@@ -18,9 +17,9 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
   const upcomingQueryString = `SELECT * FROM tournaments WHERE start_date > '${currentDate}'`
   const pastQueryString = `SELECT * FROM tournaments WHERE end_date < '${currentDate}'`
 
-  const currentTournamentsQuery = await database.query(currentQueryString);
-  const upcomingTournamentsQuery = await database.query(upcomingQueryString);
-  const pastTournamentsQuery = await database.query(pastQueryString);
+  const currentTournamentsQuery = await client.query(currentQueryString);
+  const upcomingTournamentsQuery = await client.query(upcomingQueryString);
+  const pastTournamentsQuery = await client.query(pastQueryString);
   
   var currentTournaments = currentTournamentsQuery.rows;
   const upcomingTournaments = upcomingTournamentsQuery.rows;
@@ -30,7 +29,7 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
   for (var i = 0; i < currentTournaments.length; i++) {
     const tournament = currentTournaments[i];
     const gamesQueryString = `SELECT * FROM games WHERE tournament_id = ${tournament.id} ORDER BY start_time`
-    const gamesQuery = await database.query(gamesQueryString);
+    const gamesQuery = await client.query(gamesQueryString);
     const games = gamesQuery.rows;
     //Insert games into current tournaments json
     currentTournaments[i].games = games;
@@ -38,7 +37,7 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
 
   //Create map of team ids to names to let pug display names
   const teamsQueryString = `SELECT * FROM teams`
-  const teamsQuery = await database.query(teamsQueryString);
+  const teamsQuery = await client.query(teamsQueryString);
   const teams = teamsQuery.rows;
   const teamsMap = new Map();
   for (const team of teams) {
@@ -52,7 +51,7 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
     teams: teamsMap
     })
 
-  await database.end()
+  await client.release();
 });
 
 module.exports = router;
