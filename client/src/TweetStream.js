@@ -7,7 +7,7 @@ const TweetStream = ({ tweets }) => {
         <table className="tweet-stream">
             <tbody>
                 {tweets.map((tweet) => (
-                <TweetRow key={tweet.data.id} tweet={tweet}/>
+                <TweetRow key={tweet.id} tweet={tweet}/>
                 ))}
             </tbody>
         </table>

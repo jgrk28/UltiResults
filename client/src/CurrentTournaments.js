@@ -1,6 +1,5 @@
-import React from "react";
-import ExpandedTable from "./ExpandableTable";
-import TweetStream from "./TweetStream";
+import React, { Fragment } from "react";
+import Games from "./Games";
 
 //React component to display the current tournaments and their info
 class CurrentTournaments extends React.Component {
@@ -12,9 +11,34 @@ class CurrentTournaments extends React.Component {
       { display: 'End', key: 'end_date'}
     ]
     return (
-      <ExpandedTable rowItems={this.props.tournamentData} columns={columnDescriptions}>
-        <TweetStream tweets={this.props.tweets}/>
-      </ExpandedTable>
+
+      <table className="tournaments-table">
+      <thead>
+        <tr>
+          {columnDescriptions.map((column) => {
+            return <th key={column.key}>{column.display}</th>
+          })}
+        </tr>
+      </thead>
+      <tbody>
+        {this.props.tournamentData.map((tournament) => {
+          return (
+            <Fragment key={tournament.id}>
+            <tr>
+              {columnDescriptions.map((column) => {
+                return <td key={column.key}>{tournament[column.key]}</td>
+              })}
+            </tr>
+            <tr>
+              <td>
+                <Games gamesData={tournament.games} tweets={this.props.tweets} teamsMap={this.props.teamsMap}/>
+              </td>
+            </tr>
+            </Fragment>
+          )
+        })}
+      </tbody>
+  </table>
 
     )
   }

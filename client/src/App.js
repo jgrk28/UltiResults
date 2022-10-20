@@ -108,13 +108,15 @@ class App extends React.Component {
             <Routes>
               <Route path="/" element=
                 {<CurrentTournaments 
-                  tournamentData = {this.state.tournamentData.current} 
+                  tournamentData = {this.state.tournamentData.current}
+                  teamsMap = {new Map(Object.entries(this.state.tournamentData.teams))}
                   tweets = {this.state.newTweets}
                 />}
               />
               <Route path="/current" element=
                 {<CurrentTournaments 
                   tournamentData = {this.state.tournamentData.current} 
+                  teamsMap = {new Map(Object.entries(this.state.tournamentData.teams))}
                   tweets = {this.state.newTweets}
                 />}
               />

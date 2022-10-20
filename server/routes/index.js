@@ -30,7 +30,15 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
     const tournament = currentTournaments[i];
     const gamesQueryString = `SELECT * FROM games WHERE tournament_id = ${tournament.id} ORDER BY start_time`
     const gamesQuery = await client.query(gamesQueryString);
-    const games = gamesQuery.rows;
+    var games = gamesQuery.rows;
+    //Insert tweets into current tournaments json
+    for (var j = 0; j < games.length; j++) {
+      const game = games[j];
+      const tweetsQueryString = `SELECT * FROM tweets WHERE team_id = ${game.team1_id} OR team_id = ${game.team2_id} ORDER BY time`
+      const tweetsQuery = await client.query(tweetsQueryString);
+      const tweets = tweetsQuery.rows;
+      games[j].tweets = tweets;
+    }
     //Insert games into current tournaments json
     currentTournaments[i].games = games;
   }
@@ -41,14 +49,14 @@ start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
   const teams = teamsQuery.rows;
   const teamsMap = new Map();
   for (const team of teams) {
-    teamsMap.set(team.id, team.usau_name);
+    teamsMap.set(team.id, {usau_name: team.usau_name, twitter: team.twitter});
   }
 
   res.json({
     current: currentTournaments,
     upcoming: upcomingTournaments,
     past: pastTournaments, 
-    teams: teamsMap
+    teams: Object.fromEntries(teamsMap)
     })
 
   await client.release();

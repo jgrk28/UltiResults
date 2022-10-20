@@ -26,8 +26,8 @@ var server = http.createServer(app);
 const io = new Server(server);
 const token = process.env.BEARER_TOKEN;
 const twitter = new TwitterManager(io, token, pool);
-twitter.addAccount('scores_ultimate', 1);
-twitter.addAccount('Every3Minutes', 2);
+twitter.addAccount('scores_ultimate', 3);
+twitter.addAccount('Every3Minutes', 4);
 twitter.startStream();
 
 /**

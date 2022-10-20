@@ -227,8 +227,8 @@ class TwitterManager {
 		//author_id is twitter defined
 		const author = tweet.includes.users[0].username;
 		const teamId = this.accounts.get(author);
-		const insertQuery = `INSERT INTO tweets(team_id, time, tweet) VALUES($1, $2, $3) RETURNING team_id`;
-		const insertValues = [teamId, tweet.data.created_at, tweet.data.text];
+		const insertQuery = `INSERT INTO tweets(team_id, time, tweet, id) VALUES($1, $2, $3, $4) RETURNING id`;
+		const insertValues = [teamId, tweet.data.created_at, tweet.data.text, tweet.data.id];
 		this.pool
 			.query(insertQuery, insertValues)
   			.then(res => console.log(res.rows[0].teamId))

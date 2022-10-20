@@ -1,9 +1,9 @@
 import React from "react";
 
-const TweetRow = (props) => {
+const TweetRow = ({ tweet }) => {
 	return (
 	<tr>
-		<td>{props.tweet.data.text}</td>
+		<td>{tweet.tweet}</td>
 	</tr>
 	);
 };
