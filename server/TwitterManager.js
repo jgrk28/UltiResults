@@ -68,7 +68,6 @@ class TwitterManager {
 
 		console.log("rules successfully set");
 		console.log(ruleValue);
-		console.log(rule.id);
 		return rule.id;
 	}
 
@@ -150,7 +149,6 @@ class TwitterManager {
 				// if first rule, deletes any rules from previous uses
 				await this.deleteAllRules();
 			}
-			console.log(ruleValue);
 			this.ruleId = await this.addRule(ruleValue);
 			// delete old rule if there was one
 			if (oldId) {

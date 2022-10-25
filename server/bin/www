@@ -8,8 +8,7 @@ const app = require('../app');
 const debug = require('debug')('myexpressapp:server');
 const http = require('http');
 const { Server } = require('socket.io');
-const TwitterManager = require('../TwitterManager');
-const pool = require('../database');
+const Controller = require('../Controller');
 
 /**
  * Get port from environment and store in Express.
@@ -24,11 +23,7 @@ app.set('port', port);
 
 var server = http.createServer(app);
 const io = new Server(server);
-const token = process.env.BEARER_TOKEN;
-const twitter = new TwitterManager(io, token, pool);
-twitter.addAccount('scores_ultimate', 3);
-twitter.addAccount('Every3Minutes', 4);
-twitter.startStream();
+Controller.startBackend(io);
 
 /**
  * Listen on provided port, on all network interfaces.
