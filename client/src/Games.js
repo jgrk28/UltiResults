@@ -1,5 +1,6 @@
 import React, { Fragment } from "react";
 import TweetStream from "./TweetStream";
+import { DateTime } from 'luxon';
 
 
 //React component to display a table of games and their tweets
@@ -9,9 +10,12 @@ class Games extends React.Component {
 		const team1Twitter = this.props.teamsMap.get(game.team1_id.toString()).twitter;
 		const team2Twitter = this.props.teamsMap.get(game.team2_id.toString()).twitter;
 		var tweetStreamData = [...game.tweets];
+    const gameTime = DateTime.fromISO(game.start_time);
 		this.props.tweets.forEach(function (tweet, i) {
       const username = tweet.includes.users[0].username;
-			if (username == team1Twitter || username == team2Twitter) {
+      const tweetTime = DateTime.fromISO(tweet.data.created_at);
+      // TODO For now just checking if it was in the last 90 minutes to see if the game is going on
+			if ((username === team1Twitter || username === team2Twitter) && tweetTime < gameTime.plus({minutes: 90})) {
 				tweetStreamData.push({
 					tweet: tweet.data.text,
 					id: tweet.data.id

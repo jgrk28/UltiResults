@@ -10,8 +10,7 @@ router.get('/', async (req, res, next) => {
   const client = await pool.connect();
 
   //Get current, past, and upcoming tournaments
-  //TODO reformat date from database
-  const currentDate = DateTime.local(2022,5,6).toSQLDate();
+  const currentDate = DateTime.now().toSQLDate();
   const currentQueryString = `SELECT * FROM tournaments WHERE 
 start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
   const upcomingQueryString = `SELECT * FROM tournaments WHERE start_date > '${currentDate}'`
