@@ -9,7 +9,6 @@ class Scheduler {
 		this.pool = pool;
 		this.twitterHandles = new Map();
 		this.tounamentJobs = new Map();
-		this.gameJobs = new Map();
 	}
 
 	// Get twitter for given team ID and cache fetched data in this.twitterHandles
@@ -27,72 +26,63 @@ class Scheduler {
 		return this.twitterHandles.get(teamId);
 	}
 
-	async startGame(team1Id, team2Id) {
-		const account1 = await this.getTwitter(team1Id);
-		const account2 = await this.getTwitter(team2Id);
-		this.twitter.addAccount(account1, team1Id);
-		this.twitter.addAccount(account2, team2Id);
-		//Make sure you are calling this.twitter.updateRule after all startGame calls have finished
+	// TODO maybe more efficient to pass in accounts instead of ids
+	async addTwitters(teamIds) {
+		for (const teamId of teamIds) {
+			const account = await this.getTwitter(teamId);
+			this.twitter.addAccount(account, teamId);
+		}
+		this.twitter.updateRule();
 	}
 
-	async initGamesSchedule(tournamentId) {
-		const currentTime = DateTime.now().toSQL();
-		const gamesQuery = `SELECT * FROM games WHERE tournament_id = '${tournamentId}' AND start_time > '${currentTime}'`;
-  
+	async removeTwitters(teamIds) {
+		for (const teamId of teamIds) {
+			const account = await this.getTwitter(teamId);
+			this.twitter.removeAccount(account);
+		}
+		this.twitter.updateRule();
+	}
+
+	async initTournamentTwitters(tournamentId, end_date) {
+		//Follow all games that are playing now or in this tournament in the future
+		// TODO make a better guess if the game is still going on
+		const earliestTime = DateTime.now().minus({minutes: 90}).toSQL();
+		const gamesQuery = `SELECT * FROM games WHERE tournament_id = '${tournamentId}' AND start_time > '${earliestTime}'`;
+		var teams = new Set();
 		await this.pool
 			.query(gamesQuery)
   			.then(res => {
 				for(const game of res.rows) {
-					const job = schedule.scheduleJob(game.start_time, async () => {
-  						console.log('What to do if there is a game.');
-						await this.startGame(game.team1_id, game.team2_id);
-						// TODO is there a way to all this update after the chunk that all start at the same time
-						// sort into same time chunks then put a for loop in here
-						await this.twitter.updateRule();
-					});
-					this.gameJobs.set(game.id, job);
+					teams.add(game.team1_id);
+					teams.add(game.team2_id);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
+		this.addTwitters(teams);
+
+		// Assumption here is that teams will not start another tournament before this tournament is over
+		const tournament_end = new DateTime(end_date).plus({hours: 23, minutes: 59});
+		const job = schedule.scheduleJob(tournament_end, async () => {
+			this.removeTwitters(teams);
+		});
 	}
 
-	async startOngoingGames(tournamentId) {
-		// If we are within 1.5 hours of the start time assume the game is still going on
-		// TODO make a better guess if the game is still going on
-		const earliestTime = DateTime.now().minus({minutes: 90}).toSQL();
-		const currentTime = DateTime.now().toSQL();
-		const gamesQuery = `SELECT * FROM games WHERE tournament_id = '${tournamentId}' 
-							AND start_time > '${earliestTime}'
-							AND start_time < '${currentTime}'`;
-  
-		await this.pool
-			.query(gamesQuery)
-  			.then(async (res) => {
-				for(const game of res.rows) {
-					await this.startGame(game.team1_id, game.team2_id);
-				}
-			})
-  			.catch(err => console.error('Error executing query', err.stack))
-		await this.twitter.updateRule();
-	}
-
-	async startTournament(tournament_id) {
+	async startTournament(tournament_id, end_date) {
 		await this.scraper.getSchedule(tournament_id);
-		this.initGamesSchedule(tournament_id);
-		this.startOngoingGames(tournament_id);
+		this.initTournamentTwitters(tournament_id, end_date);
 	}
 
-	async initTournamentSchedule() {
+	initTournamentSchedule() {
 		const currentDate = DateTime.now().toSQLDate();
 		const upcomingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date > '${currentDate}'`
   
-		await this.pool
+		this.pool
 			.query(upcomingTournamentsQuery)
   			.then(res => {
 				for(const tournament of res.rows) {
 					const job = schedule.scheduleJob(tournament.start_date, () => {
   						console.log('What to do if there is a tournament.');
-						this.startTournament(tournament.id);
+						this.startTournament(tournament.id, tournament.end_date);
 					});
 					this.tounamentJobs.set(tournament.id, job);
 				}
@@ -100,15 +90,15 @@ class Scheduler {
   			.catch(err => console.error('Error executing query', err.stack))
 	}
 
-	async checkOngoingTournaments() {
+	checkOngoingTournaments() {
 		const currentDate = DateTime.now().toSQLDate();
 		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
   
-		await this.pool
+		this.pool
 			.query(ongoingTournamentsQuery)
-  			.then(res => {
+  			.then(async(res) => {
 				for(const tournament of res.rows) {
-					this.startTournament(tournament.id);
+					await this.startTournament(tournament.id, tournament.end_date);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
