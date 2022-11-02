@@ -14,6 +14,20 @@ class WebScraper {
 		return DateTime.fromFormat(stringDate + `/${curr_year}`, 'D').toSQLDate();
 	}
 
+	//Convert from the form 'H(H):MM AM/PM' e.g. '9:00 AM' to 24 hour 'H(H):MM'
+	convertTime12to24 = (time12h) => {
+		const [time, amPm] = time12h.split(' ');
+		let [hours, minutes] = time.split(':');
+		if (hours === '12') {
+		  hours = '00';
+		}
+		if (amPm === 'PM') {
+		  hours = parseInt(hours, 10) + 12;
+		}
+	  
+		return `${hours}:${minutes}`;
+	}
+
 	//Turn scraped strings into appropriate format for INSERT into database tournament table
 	formatTournamentInsert = (date, division, event_name, location, event_url) => {
 		//date can handle the following formats "9/16-9/17", "9/4 - 9/5", and "9/8"
@@ -36,29 +50,29 @@ class WebScraper {
 				ON CONFLICT (division_id, url) DO NOTHING`;
 	}
 
-	formatGameInsert = async (tournamentId, date, time, team1, team2, division, database) => {
+	formatGameInsert = async (tournamentId, date, time, team1, team2, division) => {
 		//Cut off final word which is always the seed to leave just the team name
 		const team1NoSeed = team1.substring(0, team1.lastIndexOf(" "));
 		const team2NoSeed = team2.substring(0, team2.lastIndexOf(" "));
 
-		const team1Id = await Team.getId(team1NoSeed, division, database);
-		const team2Id = await Team.getId(team2NoSeed, division, database);
+		const team1Id = await Team.getId(team1NoSeed, division, this.pool);
+		const team2Id = await Team.getId(team2NoSeed, division, this.pool);
 		//TODO make sure this doesnt break near new year
 		const currYear = new Date().getFullYear();
 
-		//date is in the form 'DOW M(M)/D(D)' e.g. 'Sat 4/30'
-		const monthDay = date.split(" ")[1];
+		//date is in the form 'DOW M(M)/D(D)' e.g. 'Sat 4/30' or 'M(M)/D(D)/YYYY' e.g. '4/30/2022'
+		const monthDay = date.substring(date.lastIndexOf(" ") + 1); //Cut off day word if any
 		const [month, day] = monthDay.split("/").map(element => parseInt(element, 10));
 
 		//TODO adjust to timezone of tournament
-		//time is in the form 'H(H):MM AM/PM' e.g. '9:00 AM'
-		const time24h = convertTime12to24(time);
+		const time24h = this.convertTime12to24(time);
 		const [hours, minutes] = time24h.split(":").map(element => parseInt(element, 10));
 
 		const databaseDate = DateTime.local(currYear, month, day, hours, minutes, { zone: 'America/New_York' });
 		const databaseTime = databaseDate.toSQL();
 		return `INSERT INTO games (tournament_id, team1_id, team2_id, start_time) 
-		VALUES (${tournamentId}, ${team1Id}, ${team2Id}, '${databaseTime}')`;;
+		VALUES (${tournamentId}, ${team1Id}, ${team2Id}, '${databaseTime}')
+		ON CONFLICT (team1_id, team2_id, start_time, tournament_id) DO NOTHING`;
 	}
 
 
@@ -130,16 +144,31 @@ class WebScraper {
 
 			const $ = cheerio.load(data);
 			//each table row represents one tournament (both past and future)
-			const games = $('.scores_table > tbody > tr:not(:first-child)').toArray();
-			for (const game of games) {
+			const normal_games = $('.scores_table > tbody > tr:not(:first-child)').toArray();
+			for (const game of normal_games) {
 				const day = $(game).find("td:eq(0)").text().trim();
 				const time = $(game).find("td:eq(1)").text().trim();
 				const team1 = $(game).find("td:eq(3)").text().trim();
 				const team2 = $(game).find("td:eq(4)").text().trim();
 				try {
 					const insert_query = 
-						await formatGameInsert(tournamentId, day, time, team1, team2, division, database);
-					await database.query(insert_query);
+						await this.formatGameInsert(tournament_id, day, time, team1, team2, division);
+					await client.query(insert_query);
+				} catch(error) {
+					console.log(error);
+				}
+			}
+			const bracket_games = $('.bracket_game').toArray();
+			for (const game of bracket_games) {
+				const datetime = $(game).find('.date').text().trim();
+				const date = datetime.substring(0, datetime.indexOf(' ')); // datetime until the first space
+				const time = datetime.substring(datetime.indexOf(' ') + 1); // datetime after the first space
+				const team1 = $(game).find('.top_area > .isName').text().trim();
+				const team2 = $(game).find('.btm_area > .isName').text().trim();
+				try {
+					const insert_query = 
+						await this.formatGameInsert(tournament_id, date, time, team1, team2, division);
+					await client.query(insert_query);
 				} catch(error) {
 					console.log(error);
 				}
@@ -203,7 +232,7 @@ class Division {
 				return this.D1_men;
 			case 4:
 				return this.D3_men;
-			case 4:
+			case 5:
 				return this.mixed;
 			default:
 				throw `${divId} is not a division ID`;
@@ -214,9 +243,9 @@ class Division {
 // Team class provides functionality related to the teams database table
 class Team {
 	//Gets the ID of given team if not in table adds to table
-	static async getId(teamName, division) {
+	static async getId(teamName, division, pool) {
 		//connect to database
-		const client = await this.pool.connect();
+		const client = await pool.connect();
 		const selectQuery = `SELECT id FROM teams WHERE usau_name = 
 							'${teamName}' AND division_id = ${division.id}`;
 		var data = await client.query(selectQuery);
