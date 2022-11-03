@@ -62,13 +62,20 @@ class TwitterManager {
 			console.log("Error:", response.statusText, response.status)
 			throw new Error(response.data);
 		}
+		
+		if (response.data.errors) {
+			for (var i = 0; i < response.data.errors.length; i++) {
+				console.log(response.data.errors[i].title);
+				return 0;
+			}
+		} else {
+			//for now we are always only going to have 1 rule
+			const rule = response.data.data[0];
 
-		//for now we are always only going to have 1 rule
-		const rule = response.data.data[0];
-
-		console.log("rules successfully set");
-		console.log(ruleValue);
-		return rule.id;
+			console.log("rules successfully set");
+			console.log(ruleValue);
+			return rule.id;
+		}
 	}
 
 	// removes the speciefied rule from the twitter streaming rules API
