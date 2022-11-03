@@ -62,14 +62,20 @@ class Scheduler {
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
 		const tournament_end = new DateTime(end_date).plus({hours: 23, minutes: 59});
-		const job = schedule.scheduleJob(tournament_end, async () => {
+		schedule.scheduleJob(tournament_end, async () => {
 			this.removeTwitters(teams);
 		});
 	}
 
-	async startTournament(tournament_id, end_date) {
-		await this.scraper.getSchedule(tournament_id);
-		this.initTournamentTwitters(tournament_id, end_date);
+	async scrapeTournament(tournament_id) {
+		const updateDate = await this.scraper.getSchedule(tournament_id);
+		//TODO stop fully scraping the tournament each time as this is very inefficient (might also not work when USAU is slow)
+		//maybe can use the relationships given in the bracket structure to provide our own answer to who is playing
+		if (updateDate) {
+			schedule.scheduleJob(updateDate, () => {
+				this.scrapeTournament(tournament_id);
+			});
+		}
 	}
 
 	initTournamentSchedule() {
@@ -80,9 +86,10 @@ class Scheduler {
 			.query(upcomingTournamentsQuery)
   			.then(res => {
 				for(const tournament of res.rows) {
-					const job = schedule.scheduleJob(tournament.start_date, () => {
+					schedule.scheduleJob(tournament.start_date, async () => {
   						console.log('What to do if there is a tournament.');
-						this.startTournament(tournament.id, tournament.end_date);
+						await this.scrapeTournament(tournament.id);
+						this.initTournamentTwitters(tournament.id, tournament.end_date);
 					});
 					this.tounamentJobs.set(tournament.id, job);
 				}
@@ -98,7 +105,8 @@ class Scheduler {
 			.query(ongoingTournamentsQuery)
   			.then(async(res) => {
 				for(const tournament of res.rows) {
-					await this.startTournament(tournament.id, tournament.end_date);
+					await this.scrapeTournament(tournament.id);
+					this.initTournamentTwitters(tournament.id, tournament.end_date);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
@@ -110,7 +118,7 @@ class Scheduler {
 		this.checkOngoingTournaments();
 
 		//Updates the tournament schedule each week on wednesday at 5pm
-		const job = schedule.scheduleJob('0 17 * * 3', () => {
+		schedule.scheduleJob('0 17 * * 3', () => {
 			console.log('Getting season schedule');
 			const changed = this.scraper.getTournaments();
 			//TODO add new jobs

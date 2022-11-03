@@ -115,7 +115,9 @@ class WebScraper {
 	};
 
 	//Scrape tournament schedule for specified tournament
+	//Returns the date of the earliest game in need of updated data
 	getSchedule = async (tournament_id) => {
+		var updateNeeded = null;
 		try {
 			//connect to database
 			const client = await this.pool.connect();
@@ -135,6 +137,9 @@ class WebScraper {
 				case Division.D3_men:
 					fullUrl = fullUrl + "/Men/CollegeMen/";
 					break;
+				case Division.mixed:
+					fullUrl = fullUrl + "/mixed/College-Mixed/";
+					break;
 				default:
 					`division ${division.id} is unknown`
 			}
@@ -150,12 +155,24 @@ class WebScraper {
 				const time = $(game).find("td:eq(1)").text().trim();
 				const team1 = $(game).find("td:eq(3)").text().trim();
 				const team2 = $(game).find("td:eq(4)").text().trim();
-				try {
-					const insert_query = 
-						await this.formatGameInsert(tournament_id, day, time, team1, team2, division);
-					await client.query(insert_query);
-				} catch(error) {
-					console.log(error);
+				//TBD if a team is of the form "W of ...", "W of ...", or "P2 of ..."
+				const isTBD = (/^(W|L|P\d) of /.test(team1) || /^(W|L|P\d) of /.test(team2));
+				if (isTBD) {
+					const datetime = day.substring(day.indexOf(' ') + 1) + ' ' + time;
+					const updateAt = DateTime.fromFormat(datetime, 'M/d h:mm a');
+
+					if (!updateNeeded || updateNeeded > updateAt) {
+						updateNeeded = updateAt;
+					}
+				}
+				else {
+					try {
+						const insert_query = 
+							await this.formatGameInsert(tournament_id, day, time, team1, team2, division);
+						await client.query(insert_query);
+					} catch(error) {
+						console.log(error);
+					}
 				}
 			}
 			const bracket_games = $('.bracket_game').toArray();
@@ -165,12 +182,22 @@ class WebScraper {
 				const time = datetime.substring(datetime.indexOf(' ') + 1); // datetime after the first space
 				const team1 = $(game).find('.top_area > .isName').text().trim();
 				const team2 = $(game).find('.btm_area > .isName').text().trim();
-				try {
-					const insert_query = 
-						await this.formatGameInsert(tournament_id, date, time, team1, team2, division);
-					await client.query(insert_query);
-				} catch(error) {
-					console.log(error);
+				//TBD if a team is of the form "W of ...", "W of ...", or "P2 of ..."
+				const isTBD = (/^(W|L|P\d) of /.test(team1) || /^(W|L|P\d) of /.test(team2));
+				if (isTBD) {
+					const updateAt = DateTime.fromFormat(datetime, 'M/d/yyyy h:mm a');
+					if (!updateNeeded || updateNeeded > updateAt) {
+						updateNeeded = updateAt;
+					}
+				}
+				else {
+					try {
+						const insert_query = 
+							await this.formatGameInsert(tournament_id, date, time, team1, team2, division);
+						await client.query(insert_query);
+					} catch(error) {
+						console.log(error);
+					}
 				}
 			}
 	
@@ -178,6 +205,7 @@ class WebScraper {
 		} catch (error) {
 			throw error;
 		}
+		return updateNeeded;
 	};
 };
 
