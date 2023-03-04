@@ -11,8 +11,11 @@ router.get('/', async (req, res, next) => {
 
   //Get current, past, and upcoming tournaments
   const currentDate = DateTime.now().toSQLDate();
+  //const currentDate = DateTime.utc(2023, 3, 4, 14);
   const currentQueryString = `SELECT * FROM tournaments WHERE 
-start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
+                              start_date <= '${currentDate}' AND 
+                              end_date >= '${currentDate}' AND 
+                              do_stream = TRUE`
   const upcomingQueryString = `SELECT * FROM tournaments WHERE start_date > '${currentDate}'`
   const pastQueryString = `SELECT * FROM tournaments WHERE end_date < '${currentDate}'`
 

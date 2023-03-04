@@ -30,7 +30,11 @@ class Scheduler {
 	async addTwitters(teamIds) {
 		for (const teamId of teamIds) {
 			const account = await this.getTwitter(teamId);
-			this.twitter.addAccount(account, teamId);
+			if (account == null) {
+				console.log(`twitter for ${teamId} not found`);
+			} else {
+				this.twitter.addAccount(account, teamId);
+			}
 		}
 		this.twitter.updateRule();
 	}
@@ -91,7 +95,7 @@ class Scheduler {
 						await this.scrapeTournament(tournament.id);
 						this.initTournamentTwitters(tournament.id, tournament.end_date);
 					});
-					this.tounamentJobs.set(tournament.id, job);
+					//TODO this.tounamentJobs.set(tournament.id, job);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
@@ -99,7 +103,10 @@ class Scheduler {
 
 	checkOngoingTournaments() {
 		const currentDate = DateTime.now().toSQLDate();
-		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}'`
+		//for testing
+		//const currentDate = DateTime.utc(2023, 3, 4, 14);
+
+		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}' AND do_stream = TRUE`
   
 		this.pool
 			.query(ongoingTournamentsQuery)

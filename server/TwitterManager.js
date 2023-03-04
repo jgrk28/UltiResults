@@ -236,7 +236,7 @@ class TwitterManager {
 		const insertValues = [teamId, tweet.data.created_at, tweet.data.text, tweet.data.id];
 		this.pool
 			.query(insertQuery, insertValues)
-  			.then(res => console.log(res.rows[0].teamId))
+  			.then(res => console.log(res.rows[0].id))
   			.catch(err => console.error('Error executing query', err.stack))
 	}
 };

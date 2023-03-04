@@ -8,8 +8,8 @@ class Controller {
 	static async startBackend(io) {
 		const token = process.env.BEARER_TOKEN;
 		const twitter = new TwitterManager(io, token, pool);
-		//twitter.addAccount('scores_ultimate', 3);
-		//twitter.addAccount('Every3Minutes', 4);
+		//twitter.addAccount('scores_ultimate', 1);
+		//twitter.addAccount('Every3Minutes', 2);
 		await twitter.startStream();
 		const scraper = new WebScraper(pool);
 		const scheduler = new Scheduler(twitter, scraper, pool);

@@ -100,9 +100,13 @@ class WebScraper {
 					const location = $(element).find('td.location').ignore("span").text().trim();
 					//link to detailed schedule page
 					const event_url = $(element).find('td.results > a').attr('href');
+					if (date == "tba") {
+						//continues to next entry if the date is tba
+						return true;
+					}
 					try {
 						const insert_query = 
-							this.formatTournamentInsert(date, division, event_name, location, event_url);
+						this.formatTournamentInsert(date, division, event_name, location, event_url);
 						await client.query(insert_query);
 					} catch(error) {
 						console.log(error);
