@@ -23,19 +23,32 @@ class TwitterManager {
 		this.accounts.delete(toRemove);
 	}
 
-	// builds a rule to track all tweets from all accounts in this.accounts
-	createRuleValue() {
-		let ruleValue = "";
+	// builds rules to track all tweets from all accounts in this.accounts
+	createRuleValues() {
+		let ruleValues = [];
 		const numAccounts = this.accounts.size;
-		let count = 0;
+		let charCount = 0;
+		let ruleValue = "";
+		//loop through all the accounts to put them in a rule
 		this.accounts.forEach((id, account) => {
-			ruleValue += "from:" + account;
-			count += 1;
-			if (count < numAccounts) {
-				ruleValue += " OR ";
-			}
+			charCount += 9;
+			charCount += account.length;
+			//if we are mid rule and have not reached the character limit
+			if (charCount <= 512 && ruleValue != "") {
+				ruleValue += " OR from:" + account;
+			} else {
+				//if there is a rule that means it has reached the character limit
+				if (ruleValue != "") {
+					ruleValues.push(ruleValue);
+				}
+				//start a new rule (no OR)
+				ruleValue = "from:" + account;
+				charCount = 5 + account.length;
+			} 
 		});
-		return ruleValue;
+		//add the last (not fully filled) rule value
+		ruleValues.push(ruleValue);
+		return ruleValues;
 	}
 
 	// adds the given rule to the twitter streaming rules API
@@ -145,22 +158,20 @@ class TwitterManager {
 		return (postResponse.data);
 	}
 
-	// updates the streaming rule based on the current contents of this.accounts
-	async updateRule() {
-		// save old id to delete after new rule is added
-		const oldId = this.ruleId;
-		// add new rule
-		const ruleValue = this.createRuleValue();
+	// updates the streaming rules based on the current contents of this.accounts
+	async updateRules() {
+		
+		// make new rules
+		const ruleValues = this.createRuleValues();
+		console.log(ruleValues)
 		try {
-			if (!oldId) {
-				// if first rule, deletes any rules from previous uses
-				await this.deleteAllRules();
-			}
-			this.ruleId = await this.addRule(ruleValue);
-			// delete old rule if there was one
-			if (oldId) {
-				await this.deleteRule(oldId);
-			}	
+			// delete all old rules
+			await this.deleteAllRules();
+			
+			ruleValues.forEach(async (rule) => {
+				await this.addRule(rule);
+			});
+			
 		} catch (e) {
 			console.error(e);
 		}	
@@ -168,7 +179,7 @@ class TwitterManager {
 
 	// starts the stream, rules can still be updated while the stream is running
 	async startStream() {
-		await this.updateRule();
+		await this.updateRules();
 		try {
 			const response = await axios.get(this.streamURL, {
 				headers: {
