@@ -36,7 +36,7 @@ class Scheduler {
 				this.twitter.addAccount(account, teamId);
 			}
 		}
-		this.twitter.updateRule();
+		await this.twitter.updateRules();
 	}
 
 	async removeTwitters(teamIds) {
@@ -44,7 +44,7 @@ class Scheduler {
 			const account = await this.getTwitter(teamId);
 			this.twitter.removeAccount(account);
 		}
-		this.twitter.updateRule();
+		await this.twitter.updateRules();
 	}
 
 	async initTournamentTwitters(tournamentId, end_date) {
@@ -62,7 +62,7 @@ class Scheduler {
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
-		this.addTwitters(teams);
+		await this.addTwitters(teams);
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
 		const tournament_end = new DateTime(end_date).plus({hours: 23, minutes: 59});
@@ -71,15 +71,16 @@ class Scheduler {
 		});
 	}
 
-	async scrapeTournament(tournament_id) {
+	async scrapeTournament(tournament_id, tournament_end) {
 		const updateDate = await this.scraper.getSchedule(tournament_id);
 		//TODO stop fully scraping the tournament each time as this is very inefficient (might also not work when USAU is slow)
 		//maybe can use the relationships given in the bracket structure to provide our own answer to who is playing
 		if (updateDate) {
 			schedule.scheduleJob(updateDate, () => {
-				this.scrapeTournament(tournament_id);
+				this.scrapeTournament(tournament_id, tournament_end);
 			});
 		}
+		await this.initTournamentTwitters(tournament_id, tournament_end);
 	}
 
 	initTournamentSchedule() {
@@ -92,8 +93,7 @@ class Scheduler {
 				for(const tournament of res.rows) {
 					schedule.scheduleJob(tournament.start_date, async () => {
   						console.log('What to do if there is a tournament.');
-						await this.scrapeTournament(tournament.id);
-						this.initTournamentTwitters(tournament.id, tournament.end_date);
+						await this.scrapeTournament(tournament.id, tournament.end_date);
 					});
 					//TODO this.tounamentJobs.set(tournament.id, job);
 				}
@@ -102,9 +102,9 @@ class Scheduler {
 	}
 
 	checkOngoingTournaments() {
-		const currentDate = DateTime.now().toSQLDate();
+		const currentDate = DateTime.now().setZone("America/New_York").toSQLDate();
 		//for testing
-		//const currentDate = DateTime.utc(2023, 3, 4, 14);
+		//const currentDate = DateTime.utc(2023, 3, 4);
 
 		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}' AND do_stream = TRUE`
   
@@ -112,8 +112,7 @@ class Scheduler {
 			.query(ongoingTournamentsQuery)
   			.then(async(res) => {
 				for(const tournament of res.rows) {
-					await this.scrapeTournament(tournament.id);
-					this.initTournamentTwitters(tournament.id, tournament.end_date);
+					await this.scrapeTournament(tournament.id, tournament.end_date);				
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))

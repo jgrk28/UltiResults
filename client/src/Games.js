@@ -6,17 +6,15 @@ import { DateTime } from 'luxon';
 //React component to display a table of games and their tweets
 class Games extends React.Component {
 	getTweetStream = (game) => {
-		//TODO figure out how to get team names cant json a Map
-		const team1Twitter = this.props.teamsMap.get(game.team1_id.toString()).twitter;
-		const team2Twitter = this.props.teamsMap.get(game.team2_id.toString()).twitter;
 		var tweetStreamData = [...game.tweets];
-    const gameTime = DateTime.fromISO(game.start_time);
+    const gameTime = DateTime.fromISO(game.start_time, {zone: 'utc'});
 		this.props.tweets.forEach(function (tweet, i) {
       const username = tweet.includes.users[0].username;
-      const tweetTime = DateTime.fromISO(tweet.data.created_at);
+      const tweetTime = DateTime.fromISO(tweet.data.created_at, {zone: 'utc'});
       // TODO For now just checking if it was in the last 90 minutes to see if the game is going on
-			if ((username === team1Twitter || username === team2Twitter) && tweetTime < gameTime.plus({minutes: 90})) {
-				tweetStreamData.push({
+			if ((username === game.team1_twitter || username === game.team2_twitter) && tweetTime < gameTime.plus({minutes: 90}) && tweetTime > gameTime) {
+				tweetStreamData.unshift({
+          twitter: username,
 					tweet: tweet.data.text,
 					id: tweet.data.id
 				});
@@ -28,8 +26,8 @@ class Games extends React.Component {
 
   render() {
     const columnDescriptions = [
-      { display: 'Team 1', key: 'team1_id'},
-      { display: 'Team 2', key: 'team2_id'},
+      { display: 'Team 1', key: 'team1_name'},
+      { display: 'Team 2', key: 'team2_name'},
       { display: 'Start Time', key: 'start_time'}
     ];
     return (

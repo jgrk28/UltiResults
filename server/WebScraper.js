@@ -28,6 +28,66 @@ class WebScraper {
 		return `${hours}:${minutes}`;
 	}
 
+	//Gives the timezone based on a location in the US in the formate City, ST where ST is the 2 letter state abr.
+	//Simple method just looks at the state
+	getTimeZone = (location) => {
+		const timezones = {
+			WA: 'America/Los_Angeles',
+			OR: 'America/Los_Angeles',
+			CA: 'America/Los_Angeles',
+			NV: 'America/Los_Angeles',
+			MT: 'America/Denver',
+			ID: 'America/Denver',
+			WY: 'America/Denver',
+			UT: 'America/Denver',
+			CO: 'America/Denver',
+			AZ: 'America/Denver',
+			NM: 'America/Denver',
+			ND: 'America/Chicago',
+			SD: 'America/Chicago',
+			MN: 'America/Chicago',
+			WI: 'America/Chicago',
+			NE: 'America/Chicago',
+			IA: 'America/Chicago',
+			IL: 'America/Chicago',
+			KS: 'America/Chicago',
+			MO: 'America/Chicago',
+			OK: 'America/Chicago',
+			AR: 'America/Chicago',
+			TX: 'America/Chicago',
+			LA: 'America/Chicago',
+			MS: 'America/Chicago',
+			AL: 'America/Chicago',
+			MI: 'America/New_York',
+			NY: 'America/New_York',
+			VT: 'America/New_York',
+			NH: 'America/New_York',
+			ME: 'America/New_York',
+			MA: 'America/New_York',
+			CT: 'America/New_York',
+			RI: 'America/New_York',
+			IN: 'America/New_York',
+			OH: 'America/New_York',
+			PA: 'America/New_York',
+			NJ: 'America/New_York',
+			KY: 'America/New_York',
+			WV: 'America/New_York',
+			VA: 'America/New_York',
+			DC: 'America/New_York',
+			MD: 'America/New_York',
+			DE: 'America/New_York',
+			TN: 'America/New_York',
+			NC: 'America/New_York',
+			GA: 'America/New_York',
+			SC: 'America/New_York',
+			FL: 'America/New_York',
+			HI: 'Pacific/Honolulu',
+			AK: 'America/Anchorage'
+		};
+		const state = location.substr(-2, 2);
+		return timezones[state];
+	}
+
 	//Turn scraped strings into appropriate format for INSERT into database tournament table
 	formatTournamentInsert = (date, division, event_name, location, event_url) => {
 		//date can handle the following formats "9/16-9/17", "9/4 - 9/5", and "9/8"
@@ -42,15 +102,16 @@ class WebScraper {
 			end_date = start_date;
 		}
 		const division_id = Division.createFromString(division).getId();
+		const timezone = this.getTimeZone(location);
 	
 		// If the tournament already exists do not add it
 		// TODO maybe deal with USAU changing the date of a tournament
-		return `INSERT INTO tournaments (division_id, start_date, end_date, name, location, url) 
-				VALUES (${division_id}, '${start_date}', '${end_date}', '${event_name}', '${location}', '${event_url}')
+		return `INSERT INTO tournaments (division_id, start_date, end_date, name, location, url, timezone) 
+				VALUES (${division_id}, '${start_date}', '${end_date}', '${event_name}', '${location}', '${event_url}', '${timezone}')
 				ON CONFLICT (division_id, url) DO NOTHING`;
 	}
 
-	formatGameInsert = async (tournamentId, date, time, team1, team2, division) => {
+	formatGameInsert = async (tournamentId, date, time, timezone, team1, team2, division) => {
 		//Cut off final word which is always the seed to leave just the team name
 		const team1NoSeed = team1.substring(0, team1.lastIndexOf(" "));
 		const team2NoSeed = team2.substring(0, team2.lastIndexOf(" "));
@@ -68,10 +129,10 @@ class WebScraper {
 		const time24h = this.convertTime12to24(time);
 		const [hours, minutes] = time24h.split(":").map(element => parseInt(element, 10));
 
-		const databaseDate = DateTime.local(currYear, month, day, hours, minutes, { zone: 'America/New_York' });
-		const databaseTime = databaseDate.toSQL();
+		const datetime = DateTime.local(currYear, month, day, hours, minutes, { zone: timezone });
+		const databaseTimestamp = datetime.toSQL();
 		return `INSERT INTO games (tournament_id, team1_id, team2_id, start_time) 
-		VALUES (${tournamentId}, ${team1Id}, ${team2Id}, '${databaseTime}')
+		VALUES (${tournamentId}, ${team1Id}, ${team2Id}, '${databaseTimestamp}')
 		ON CONFLICT (team1_id, team2_id, start_time, tournament_id) DO NOTHING`;
 	}
 
@@ -131,6 +192,7 @@ class WebScraper {
 
 			const division = Division.createFromId(tournament.division_id);
 			const url = tournament.url;
+			const timezone = tournament.timezone;
 			var fullUrl = url + "/schedule";
 			switch (division) {
 				case Division.D1_women:
@@ -172,7 +234,7 @@ class WebScraper {
 				else {
 					try {
 						const insert_query = 
-							await this.formatGameInsert(tournament_id, day, time, team1, team2, division);
+							await this.formatGameInsert(tournament_id, day, time, timezone, team1, team2, division);
 						await client.query(insert_query);
 					} catch(error) {
 						console.log(error);
@@ -189,7 +251,7 @@ class WebScraper {
 				//TBD if a team is of the form "W of ...", "W of ...", or "P2 of ..."
 				const isTBD = (/^(W|L|P\d) of /.test(team1) || /^(W|L|P\d) of /.test(team2));
 				if (isTBD) {
-					const updateAt = DateTime.fromFormat(datetime, 'M/d/yyyy h:mm a');
+					const updateAt = DateTime.fromFormat(datetime, 'M/d/yyyy h:mm a', {zone: timezone});
 					if (!updateNeeded || updateNeeded > updateAt) {
 						updateNeeded = updateAt;
 					}
@@ -197,7 +259,7 @@ class WebScraper {
 				else {
 					try {
 						const insert_query = 
-							await this.formatGameInsert(tournament_id, date, time, team1, team2, division);
+							await this.formatGameInsert(tournament_id, date, time, timezone, team1, team2, division);
 						await client.query(insert_query);
 					} catch(error) {
 						console.log(error);
