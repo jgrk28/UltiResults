@@ -1,6 +1,8 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import socketIOClient from "socket.io-client";
+import 'semantic-ui-css/semantic.min.css'
+import { Container, Header } from 'semantic-ui-react'
 
 import Navbar from "./Navbar";
 import CurrentTournaments from "./CurrentTournaments";
@@ -76,60 +78,46 @@ class App extends React.Component {
   render() {
     if (!this.state.dataLoaded) {
       return (
-        <div className="ui container">
-          <div className="introduction"></div>
-  
-          <h1 className="ui header">
-            <div className="content">
-              UltiResults
-              <div className="sub header">Powered by Live Tweets</div>
-              <p>
-                Please wait for data
-              </p>
-            </div>
-          </h1>
-        </div>
+        <Container>
+          <Header as="h1" style={{paddingTop: "1em"}}>
+            UltiResults
+            <Header.Subheader>Powered by Live Tweets</Header.Subheader>
+              Please wait for data
+          </Header>
+        </Container>
       );
     }
     return (
-      <div className="ui container">
-        <div className="introduction"></div>
+      <Container>
+        <Header as="h1" style={{paddingTop: "1em"}}>
+          UltiResults
+          <Header.Subheader>Powered by Live Tweets</Header.Subheader>
+        </Header>
 
-        <h1 className="ui header">
-          <div className="content">
-            UltiResults
-            <div className="sub header">Powered by Live Tweets</div>
-          </div>
-        </h1>
-
-        <div className="ui container">
-          <BrowserRouter>
-            <Navbar />
-            <Routes>
-              <Route path="/" element=
-                {<CurrentTournaments 
-                  tournamentData = {this.state.tournamentData.current}
-                  teamsMap = {new Map(Object.entries(this.state.tournamentData.teams))}
-                  tweets = {this.state.newTweets}
-                />}
-              />
-              <Route path="/current" element=
-                {<CurrentTournaments 
-                  tournamentData = {this.state.tournamentData.current} 
-                  teamsMap = {new Map(Object.entries(this.state.tournamentData.teams))}
-                  tweets = {this.state.newTweets}
-                />}
-              />
-              <Route path="/upcoming" element=
-                {<UpcomingTournaments tournamentData = {this.state.tournamentData.upcoming}  />}
-              />
-              <Route path="/past" element=
-                {<PastTournaments tournamentData = {this.state.tournamentData.past}  />}
-              />
-            </Routes>
-          </BrowserRouter>
-        </div>
-      </div>
+        <BrowserRouter>
+          <Navbar />
+          <Routes>
+            <Route path="/" element=
+              {<CurrentTournaments 
+                tournamentData = {this.state.tournamentData.current}
+                tweets = {this.state.newTweets}
+              />}
+            />
+            <Route path="/current" element=
+              {<CurrentTournaments 
+                tournamentData = {this.state.tournamentData.current}
+                tweets = {this.state.newTweets}
+              />}
+            />
+            <Route path="/upcoming" element=
+              {<UpcomingTournaments tournamentData = {this.state.tournamentData.upcoming}  />}
+            />
+            <Route path="/past" element=
+              {<PastTournaments tournamentData = {this.state.tournamentData.past}  />}
+            />
+          </Routes>
+        </BrowserRouter>
+      </Container>
     );
   }
 }

@@ -104,7 +104,7 @@ class Scheduler {
 	checkOngoingTournaments() {
 		const currentDate = DateTime.now().setZone("America/New_York").toSQLDate();
 		//for testing
-		//const currentDate = DateTime.utc(2023, 3, 4);
+		//const currentDate = DateTime.utc(2023, 3, 4).toSQLDate();
 
 		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}' AND do_stream = TRUE`
   

@@ -250,7 +250,10 @@ class WebScraper {
 				const team2 = $(game).find('.btm_area > .isName').text().trim();
 				//TBD if a team is of the form "W of ...", "W of ...", or "P2 of ..."
 				const isTBD = (/^(W|L|P\d) of /.test(team1) || /^(W|L|P\d) of /.test(team2));
-				if (isTBD) {
+				if (datetime == "TBA") {
+					continue;
+				}
+				else if (isTBD) {
 					const updateAt = DateTime.fromFormat(datetime, 'M/d/yyyy h:mm a', {zone: timezone});
 					if (!updateNeeded || updateNeeded > updateAt) {
 						updateNeeded = updateAt;

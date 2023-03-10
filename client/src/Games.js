@@ -1,6 +1,7 @@
-import React, { Fragment } from "react";
+import React from "react";
 import TweetStream from "./TweetStream";
 import { DateTime } from 'luxon';
+import { Grid, Divider } from "semantic-ui-react";
 
 
 //React component to display a table of games and their tweets
@@ -25,41 +26,27 @@ class Games extends React.Component {
 	}
 
   render() {
-    const columnDescriptions = [
-      { display: 'Team 1', key: 'team1_name'},
-      { display: 'Team 2', key: 'team2_name'},
-      { display: 'Start Time', key: 'start_time'}
-    ];
     return (
-
-      <table className="games-table">
-      <thead>
-        <tr>
-          {columnDescriptions.map((column) => {
-            return <th key={column.key}>{column.display}</th>
-          })}
-        </tr>
-      </thead>
-      <tbody>
-        {this.props.gamesData.map((game) => {
+      <Grid stackable columns={2}>
+        {this.props.gamesData.filter(game => {
+          const currTime = DateTime.now({zone: 'utc'});
+          //for testing only
+          //const currTime = DateTime.utc(2023, 3, 4, 17);
+          const gameTime = DateTime.fromISO(game.start_time);
+          return !this.props.liveFilter || (currTime < gameTime.plus({minutes: 90}) && currTime > gameTime)
+        }).map(game => {
+          const gameTime = DateTime.fromISO(game.start_time);
+          const displayTime = gameTime.toFormat('ccc h:mm a')
           return (
-            <Fragment key={game.id}>
-            <tr key={game.id}>
-              {columnDescriptions.map((column) => {
-				return <td key={column.key}>{game[column.key]}</td>
-              })}
-            </tr>
-			<tr>
-			  <td colSpan="3">
-			  	{this.getTweetStream(game)}
-			  </td>
-			</tr>
-            </Fragment>
+            <Grid.Column key={game.id} width={8}>
+              <Divider horizontal style={{textTransform: "none"}}>
+              {game.team1_name} vs {game.team2_name} | {displayTime}
+              </Divider>
+              {this.getTweetStream(game)}
+            </Grid.Column>
           )
         })}
-      </tbody>
-  </table>
-
+      </Grid>
     )
   }
 }
