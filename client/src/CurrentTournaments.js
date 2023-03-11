@@ -28,7 +28,7 @@ class CurrentTournaments extends React.Component {
     ))
 
   render() {
-    if (this.props.tournamentData.length == 0) {
+    if (this.props.tournamentData.length === 0) {
       return (
         <div>
           There are no ongoing tournaments, please check back later.

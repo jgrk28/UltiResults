@@ -1,0 +1,48 @@
+version: '3.8'
+
+services: 
+  psqldb:
+    image: postgres:latest
+    restart: always
+    env_file: ./.env
+    environment:
+      - POSTGRES_USER=$PGUSER
+      - POSTGRES_PASSWORD=$PGPASSWORD
+      - POSTGRES_DB=$PGDATABASE
+      - POSTGRES_HOST=$PGHOST
+      - POSTGRES_PORT=$PGPORT
+    expose:
+      - "$PGPORT"
+    ports:
+      - "$PGPORT:$PGPORT"
+    volumes:
+      - ./database_snapshots:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "postgres"]
+      interval: 5s
+      retries: 3
+  server:
+    depends_on:
+      psqldb:
+        condition: service_healthy
+    build: ./server/
+    restart: always
+    env_file: ./.env
+    ports:
+      - "$SERVER_LOCAL_PORT:$SERVER_LOCAL_PORT"
+    environment:
+      - PGUSER=$PGUSER
+      - PGPASSWORD=$PGPASSWORD
+      - PGDATABASE=$PGDATABASE
+      - PGHOST=$PGHOST
+      - PGPORT=$PGPORT
+      - PORT=$SERVER_LOCAL_PORT
+  client:
+    depends_on:
+      - server
+    build: ./client/
+    restart: always
+    ports:
+      - "$CLIENT_DOCKER_PORT:$CLIENT_DOCKER_PORT"
+    environment:
+      - REACT_APP_SERVER_LOCAL_PORT=$SERVER_LOCAL_PORT,

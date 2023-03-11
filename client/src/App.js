@@ -21,15 +21,8 @@ class App extends React.Component {
   }
 
   streamTweets() {
-    let socket;
-    //TODO look into socket sending multiple connection requests
-    if (process.env.NODE_ENV === "development") {
-      socket = socketIOClient(
-        "http://localhost:9000/", { transports: ['websocket'] }
-      );
-    } else {
-      socket = socketIOClient("/", { transports: ['websocket'] });
-    }
+    let port = process.env.REACT_APP_SERVER_LOCAL_PORT;
+    let socket = socketIOClient(`:${port}/`, { transports: ['websocket'] });
 
     socket.on("connect", () => {
       console.log(`connected to server`);
@@ -62,7 +55,8 @@ class App extends React.Component {
 
   
   componentDidMount() {
-    fetch("http://localhost:9000/")
+    let port = process.env.REACT_APP_SERVER_LOCAL_PORT;
+    fetch(`http://localhost:${port}/`)
       .then((res) => res.json())
       .then((json) => {
         this.setState({
