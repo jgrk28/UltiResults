@@ -235,7 +235,7 @@ class TwitterManager {
 		timeout++;
 		stream.abort();
 		await sleep(2 ** timeout * 1000);
-		streamTweets(this.socket, this.token);
+		startStream(this.socket, this.token);
 	}
 
 	async saveTweet(tweet) {

@@ -14,8 +14,5 @@ RUN npm install
 # Bundle app source
 COPY . .
 
-# Expose port
-EXPOSE $NODE_DOCKER_PORT
-
 # start node app with "node app.js"
 CMD ["npm", "run", "start"]

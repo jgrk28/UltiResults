@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import socketIOClient from "socket.io-client";
+import { io } from "socket.io-client";
 import 'semantic-ui-css/semantic.min.css'
 import { Container, Header } from 'semantic-ui-react'
 
@@ -20,9 +20,9 @@ class App extends React.Component {
     };
   }
 
-  streamTweets() {
+  startStream() {
     let port = process.env.REACT_APP_SERVER_LOCAL_PORT;
-    let socket = socketIOClient(`:${port}/`, { transports: ['websocket'] });
+    let socket = io(`:${port}`);
 
     socket.on("connect", () => {
       console.log(`connected to server`);
@@ -30,7 +30,14 @@ class App extends React.Component {
     socket.on("connect_error", (err) => {
       console.log(`connect_error due to ${err.message}`);
     });
-    
+    socket.on("init", (json) => {
+      console.log(`data initialized`);
+      this.setState({
+        tournamentData: json,
+        dataLoaded: true,
+        newTweets: [],
+      });
+    });
     socket.on("tweet", (json) => {
       console.log(json);
       if (json.data) {
@@ -55,18 +62,7 @@ class App extends React.Component {
 
   
   componentDidMount() {
-    let port = process.env.REACT_APP_SERVER_LOCAL_PORT;
-    fetch(`http://localhost:${port}/`)
-      .then((res) => res.json())
-      .then((json) => {
-        this.setState({
-          tournamentData: json,
-          dataLoaded: true,
-          newTweets: [],
-        });
-    })
-
-    this.streamTweets();
+    this.startStream();
   }
 
   render() {
