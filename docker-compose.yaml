@@ -14,7 +14,7 @@ services:
     expose:
       - "$PGPORT"
     volumes:
-      - ./database_snapshots:/docker-entrypoint-initdb.d
+      - ./postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-d", "postgres"]
       interval: 5s
