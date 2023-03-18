@@ -223,7 +223,7 @@ class TwitterManager {
 				})
 				.on("error", (error) => {
 					// Connection timed out
-					this.socket.emit("error", errorMessage);
+					this.socket.emit("error", error);
 					this.reconnect(stream);
 				});
 		} catch (e) {
