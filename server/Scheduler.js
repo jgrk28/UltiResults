@@ -1,4 +1,4 @@
-const schedule = require('node-schedule');
+const { scheduleJob } = require('node-schedule');
 const { DateTime } = require('luxon');
 
 // Manages all scheduled events using the Webscraper and TwitterManager
@@ -66,17 +66,31 @@ class Scheduler {
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
 		const tournament_end = new DateTime(end_date).plus({hours: 23, minutes: 59});
-		schedule.scheduleJob(tournament_end, async () => {
+		scheduleJob(tournament_end, async () => {
 			this.removeTwitters(teams);
 		});
 	}
 
 	async scrapeTournament(tournament_id, tournament_end) {
-		const updateDate = await this.scraper.getSchedule(tournament_id);
+		const nextTBADate = await this.scraper.getSchedule(tournament_id);
 		//TODO stop fully scraping the tournament each time as this is very inefficient (might also not work when USAU is slow)
 		//maybe can use the relationships given in the bracket structure to provide our own answer to who is playing
+		
+		var updateDate;
+		const fiveMins = DateTime.now().plus({minutes: 5});
+		const ninetyMinsAgo = DateTime.now().minus({hours: 1, minutes: 30});
+		//set next update to 5 minutes if there is a current game that is not updating
+		//otherwise set to the time of the next TBA game
+		if (!nextTBADate || nextTBADate > fiveMins) {
+			updateDate = nextTBADate;
+		} else if (nextTBADate > ninetyMinsAgo) {
+			updateDate = fiveMins;
+		} else {
+			updateDate = null;
+		}
+
 		if (updateDate) {
-			schedule.scheduleJob(updateDate, () => {
+			scheduleJob(updateDate, () => {
 				this.scrapeTournament(tournament_id, tournament_end);
 			});
 		}
@@ -84,18 +98,23 @@ class Scheduler {
 	}
 
 	initTournamentSchedule() {
-		const currentDate = DateTime.now().toSQLDate();
-		const upcomingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date > '${currentDate}'`
+		const currentDate = DateTime.now().setZone("America/New_York").toSQLDate();
+		const upcomingTournamentsQuery = 
+		`SELECT 
+		id, 
+		to_char(start_date at time zone 'utc', 'YYYY-MM-DD') as start_date,
+		to_char(end_date at time zone 'utc', 'YYYY-MM-DD') as end_date
+		FROM tournaments WHERE start_date > '${currentDate}'`
   
 		this.pool
 			.query(upcomingTournamentsQuery)
   			.then(res => {
 				for(const tournament of res.rows) {
-					schedule.scheduleJob(tournament.start_date, async () => {
-  						console.log('What to do if there is a tournament.');
+					const scrapeTime = DateTime.fromISO(tournament.start_date, {zone: "America/New_York"});
+					scheduleJob(scrapeTime, async () => {
 						await this.scrapeTournament(tournament.id, tournament.end_date);
 					});
-					//TODO this.tounamentJobs.set(tournament.id, job);
+					//TODO update the job made if the tournament changes
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
@@ -124,7 +143,7 @@ class Scheduler {
 		this.checkOngoingTournaments();
 
 		//Updates the tournament schedule each week on wednesday at 5pm
-		schedule.scheduleJob('0 17 * * 3', () => {
+		scheduleJob('0 17 * * 3', () => {
 			console.log('Getting season schedule');
 			const changed = this.scraper.getTournaments();
 			//TODO add new jobs
