@@ -6,8 +6,15 @@
 
 const app = require('../app');
 const http = require('http');
+const fs = require('fs');
 const { Server } = require('socket.io');
 const Controller = require('../Controller');
+
+// redirect stdout / stderr
+var output = fs.createWriteStream(process.env.LOGS_DIR + '/output.log', { flags: 'a' })
+var error = fs.createWriteStream(process.env.LOGS_DIR + '/error.log', { flags: 'a' });
+process.stdout.write = output.write.bind(output);
+process.stderr.write = error.write.bind(error);
 
 /**
  * Get port from environment and store in Express.

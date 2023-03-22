@@ -35,6 +35,9 @@ services:
       - PGHOST=$PGHOST
       - PGPORT=$PGPORT
       - PORT=$SERVER_LOCAL_PORT
+    volumes:
+      - ./output.log:/src/server/output.log
+      - ./error.log:/src/server/error.log
   client:
     depends_on:
       - server

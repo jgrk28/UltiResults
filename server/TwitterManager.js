@@ -154,6 +154,8 @@ class TwitterManager {
 		if (postResponse.status !== 200) {
 			console.log("Error:", postResponse.statusText, postResponse.status)
 			throw new Error(postResponse.data);
+		} else {
+			console.log("rule all successfully deleted");
 		}
 	
 		return (postResponse.data);
@@ -164,7 +166,6 @@ class TwitterManager {
 		
 		// make new rules
 		const ruleValues = this.createRuleValues();
-		console.log(ruleValues)
 		try {
 			// delete all old rules
 			await this.deleteAllRules();
@@ -202,7 +203,6 @@ class TwitterManager {
 
 			stream
 				.on("data", (data) => {
-					console.log("data incomming")
 					try {
 						const json = JSON.parse(data);
 						if (json.connection_issue) {
@@ -211,11 +211,9 @@ class TwitterManager {
 						} else {
 							if (json.data) {
 								this.socket.emit("tweet", json);
-								console.log("tweet sent")
 								this.saveTweet(json);
 							} else {
 								this.socket.emit("authError", json);
-								console.log("error sent")
 							}
 						}
 					} catch (e) {
@@ -233,6 +231,7 @@ class TwitterManager {
 	}
 
 	async reconnect(stream) {
+		console.log("attempting to reconnect");
 		this.timeout++;
 		stream.abort();
 		await sleep(2 ** this.timeout * 1000);
@@ -248,8 +247,7 @@ class TwitterManager {
 		const insertValues = [teamId, tweet.data.created_at, tweet.data.text, tweet.data.id];
 		this.pool
 			.query(insertQuery, insertValues)
-  			.then(res => console.log(res.rows[0].id))
-  			.catch(err => console.error('Error executing query', err.stack))
+  			.catch(err => console.error('Error executing query', err.stack));
 	}
 };
 
