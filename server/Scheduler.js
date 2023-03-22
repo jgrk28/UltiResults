@@ -65,10 +65,12 @@ class Scheduler {
 		await this.addTwitters(teams);
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
-		const tournament_end = new DateTime(end_date).plus({hours: 23, minutes: 59});
-		scheduleJob(tournament_end, async () => {
+		const tournament_end = DateTime.fromISO(end_date, {zone: "America/New_York"}).plus({hours: 23, minutes: 59});
+		const job = scheduleJob(tournament_end.toJSDate(), async () => {
 			this.removeTwitters(teams);
 		});
+		console.log(`remove tournament(${tournamentId}) twitters time`);
+		console.log(job.nextInvocation());
 	}
 
 	async scrapeTournament(tournament_id, tournament_end) {
@@ -90,9 +92,11 @@ class Scheduler {
 		}
 
 		if (updateDate) {
-			scheduleJob(updateDate, () => {
+			const job = scheduleJob(updateDate.toJSDate(), () => {
 				this.scrapeTournament(tournament_id, tournament_end);
 			});
+			console.log(`update tournament(${tournament_id}) time`);
+			console.log(job.nextInvocation());
 		}
 		await this.initTournamentTwitters(tournament_id, tournament_end);
 	}
@@ -102,8 +106,8 @@ class Scheduler {
 		const upcomingTournamentsQuery = 
 		`SELECT 
 		id, 
-		to_char(start_date at time zone 'utc', 'YYYY-MM-DD') as start_date,
-		to_char(end_date at time zone 'utc', 'YYYY-MM-DD') as end_date
+		to_char(start_date, 'YYYY-MM-DD') as start_date,
+		to_char(end_date, 'YYYY-MM-DD') as end_date
 		FROM tournaments WHERE start_date > '${currentDate}'`
   
 		this.pool
@@ -111,7 +115,7 @@ class Scheduler {
   			.then(res => {
 				for(const tournament of res.rows) {
 					const scrapeTime = DateTime.fromISO(tournament.start_date, {zone: "America/New_York"});
-					scheduleJob(scrapeTime, async () => {
+					scheduleJob(scrapeTime.toJSDate(), async () => {
 						await this.scrapeTournament(tournament.id, tournament.end_date);
 					});
 					//TODO update the job made if the tournament changes
@@ -123,9 +127,18 @@ class Scheduler {
 	checkOngoingTournaments() {
 		const currentDate = DateTime.now().setZone("America/New_York").toSQLDate();
 		//for testing
-		//const currentDate = DateTime.utc(2023, 3, 4).toSQLDate();
+		//const currentDate = DateTime.utc(2023, 3, 24).toSQLDate();
 
-		const ongoingTournamentsQuery = `SELECT * FROM tournaments WHERE start_date <= '${currentDate}' AND end_date >= '${currentDate}' AND do_stream = TRUE`
+		const ongoingTournamentsQuery =
+		`SELECT 
+		id, 
+		name, 
+		to_char(start_date, 'YYYY-MM-DD') as start_date,
+		to_char(end_date, 'YYYY-MM-DD') as end_date
+		FROM tournaments 
+		WHERE start_date <= '${currentDate}' 
+		AND end_date >= '${currentDate}' 
+		AND do_stream = TRUE`
   
 		this.pool
 			.query(ongoingTournamentsQuery)
@@ -144,7 +157,7 @@ class Scheduler {
 
 		//Updates the tournament schedule each week on wednesday at 5pm
 		scheduleJob('0 17 * * 3', () => {
-			console.log('Getting season schedule');
+			console.log('Updating season schedule');
 			const changed = this.scraper.getTournaments();
 			//TODO add new jobs
 			//TODO update this.tournamentJobs with changes to schedule
