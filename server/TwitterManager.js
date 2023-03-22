@@ -13,6 +13,7 @@ class TwitterManager {
 		// these should be static variable but that is giving an error
 		this.rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
 		this.streamURL = 'https://api.twitter.com/2/tweets/search/stream';
+		this.timeout = 1;
 	}
 
 	addAccount(newAccount, teamId) {
@@ -232,9 +233,9 @@ class TwitterManager {
 	}
 
 	async reconnect(stream) {
-		timeout++;
+		this.timeout++;
 		stream.abort();
-		await sleep(2 ** timeout * 1000);
+		await sleep(2 ** this.timeout * 1000);
 		startStream(this.socket, this.token);
 	}
 
