@@ -8,16 +8,35 @@ class TwitterManager {
 		this.socket = socket;
 		this.token = token;
 		this.pool = pool;
-		this.accounts = new Map();
+		this.accounts = new Set();
 		this.ruleId = 0;
 		// these should be static variable but that is giving an error
 		this.rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
 		this.streamURL = 'https://api.twitter.com/2/tweets/search/stream';
 		this.timeout = 1;
+		this.namesToId = new Object();
+		this.getAllNames();
 	}
 
-	addAccount(newAccount, teamId) {
-		this.accounts.set(newAccount, teamId);
+	getAllNames() {
+		const query = `SELECT id,usau_name,twitter FROM teams`;
+		this.pool
+			.query(query)
+			.then(res => {
+				for(const team of res.rows) {
+					if (team.usau_name) {
+						this.namesToId[team.usau_name] = team.id;
+					}
+					if (team.twitter) {
+						this.namesToId[team.twitter] = team.id;
+					}
+				}
+			})
+			.catch(err => console.error('Error executing query', err.stack));
+	}
+
+	addAccount(newAccount) {
+		this.accounts.add(newAccount);
 	}
 
 	removeAccount(toRemove) {
@@ -27,11 +46,10 @@ class TwitterManager {
 	// builds rules to track all tweets from all accounts in this.accounts
 	createRuleValues() {
 		let ruleValues = [];
-		const numAccounts = this.accounts.size;
 		let charCount = 0;
 		let ruleValue = "";
 		//loop through all the accounts to put them in a rule
-		this.accounts.forEach((id, account) => {
+		this.accounts.forEach((account) => {
 			charCount += 9;
 			charCount += account.length;
 			//if we are mid rule and have not reached the character limit
@@ -189,7 +207,7 @@ class TwitterManager {
 					"Authorization": `Bearer ${this.token}`
 				},
 				params: { 
-					tweet: {fields: 'created_at'},
+					tweet: {fields: 'created_at,conversation_id'},
 					expansions: 'author_id' 
 				},
 				paramsSerializer: (params) => {
@@ -230,21 +248,105 @@ class TwitterManager {
 		}
 	}
 
+	//TODO FIX make actually sleep
 	async reconnect(stream) {
 		console.log("attempting to reconnect");
 		this.timeout++;
 		stream.abort();
-		await sleep(2 ** this.timeout * 1000);
-		startStream(this.socket, this.token);
+		//await sleep(2 ** this.timeout * 1000);
+		this.startStream(this.socket, this.token);
+	}
+
+	//Return a team id if the team is mentioned by name or twitter in tweet
+	parseForTeam(tweetText) {
+		//Make everything lower case so that we are case insensitive
+		tweetText = tweetText.toLowerCase();
+		for (const [keyword, team_id] of Object.entries(this.namesToId)) {
+			if (tweetText.includes(keyword.toLowerCase())) {
+				return team_id;
+			}
+		}
+		return null;
+	}
+
+	//Return a game id if the given team is playing at the time of the tweets
+	async findGame(teamId, tweetTime) {
+		const query = 
+			`SELECT id FROM games 
+			WHERE (team1_id=${teamId} OR team2_id=${teamId})
+			AND ((start_time - interval '7 Minutes') < '${tweetTime}' 
+				AND (start_time + interval '90 Minutes') > '${tweetTime}')`;
+		const res = await this.pool.query(query);
+		if (res.rows.length == 0) {
+			return null;
+		} else {
+			//Assume only one game falls in the time range
+			//TODO fix assumption
+			return res.rows[0].id;
+		}
+	}
+
+	async parseForGame(tweetText, tweetTime) {
+		const teamId = this.parseForTeam(tweetText);
+		if (teamId === null) {
+			return null;
+		} else {
+			return await this.findGame(teamId, tweetTime)
+		}
+
+	}
+
+	//Checks if the thread has already been assigned to a game
+	//If not tries to parse and then sets the rest of the thread if found
+	async parseThreadForGame(conversationId, tweetText, tweetTime) {
+		const tweetQuery = 
+		`SELECT game_id FROM tweets 
+		WHERE id=${conversationId}`;
+		const res = await this.pool.query(tweetQuery);
+		if (res.rows.length == 0) {
+			return null;
+		} else if (res.rows[0].game_id) {
+			return res.rows[0].game_id;{
+		}
+		} else {
+		//Thread exists but has not yet been assigned to a game
+			let gameId = await this.parseForGame(tweetText, tweetTime);
+			if (gameId) {
+				//Set all tweets for this thread to the game found
+				//TODO tell socket that frontend should grab tweets again
+				const updateQuery = 
+				`UPDATE tweets SET game_id=${gameId}
+				WHERE root_tweet=${conversationId}`;
+				await this.pool.query(updateQuery)
+			}
+			return gameId;
+		}
 	}
 
 	async saveTweet(tweet) {
-
 		//author_id is twitter defined
 		const author = tweet.includes.users[0].username;
-		const teamId = this.accounts.get(author);
-		const insertQuery = `INSERT INTO tweets(team_id, time, tweet, id) VALUES($1, $2, $3, $4) RETURNING id`;
-		const insertValues = [teamId, tweet.data.created_at, tweet.data.text, tweet.data.id];
+		const teamId = this.namesToId[author];
+		const tweetTime = tweet.data.created_at;
+		let gameId;
+
+		//For now hardcode ultiworld live as the only account that is not a team
+		//TODO update system to be able to handle more fan tweeters
+		if(author === 'Ultiworldlive') {
+			//if it is a reply, it is most likely from a thread
+			if(tweet.data.conversation_id != tweet.data.id) {
+				gameId = await this.parseThreadForGame(tweet.data.conversation_id, tweet.data.text, tweetTime)
+			} else {
+				gameId = await this.parseForGame(tweet.data.text, tweetTime);
+			}
+		} else {
+			//Otherwise search for ongoing game where one of the teams is the tweeter
+			gameId = await this.findGame(teamId, tweetTime);
+		}
+
+
+		const insertQuery = `INSERT INTO tweets(id, team_id, game_id, time, tweet, root_tweet) VALUES($1, $2, $3, $4, $5, $6) RETURNING id`;
+		const insertValues = [tweet.data.id, teamId, gameId, tweet.data.created_at, tweet.data.text, tweet.data.conversation_id];
 		this.pool
 			.query(insertQuery, insertValues)
   			.catch(err => console.error('Error executing query', err.stack));

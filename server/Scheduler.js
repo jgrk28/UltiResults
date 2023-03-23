@@ -27,21 +27,15 @@ class Scheduler {
 	}
 
 	// TODO maybe more efficient to pass in accounts instead of ids
-	async addTwitters(teamIds) {
-		for (const teamId of teamIds) {
-			const account = await this.getTwitter(teamId);
-			if (account == null) {
-				console.log(`twitter for ${teamId} not found`);
-			} else {
-				this.twitter.addAccount(account, teamId);
-			}
+	async addTwitters(accounts) {
+		for (const account of accounts) {
+			this.twitter.addAccount(account);
 		}
 		await this.twitter.updateRules();
 	}
 
-	async removeTwitters(teamIds) {
-		for (const teamId of teamIds) {
-			const account = await this.getTwitter(teamId);
+	async removeTwitters(accounts) {
+		for (const account of accounts) {
 			this.twitter.removeAccount(account);
 		}
 		await this.twitter.updateRules();
@@ -51,26 +45,37 @@ class Scheduler {
 		//Follow all games that are playing now or in this tournament in the future
 		// TODO make a better guess if the game is still going on
 		const earliestTime = DateTime.now().minus({minutes: 90}).toSQL();
-		const gamesQuery = `SELECT * FROM games WHERE tournament_id = '${tournamentId}' AND start_time > '${earliestTime}'`;
-		var teams = new Set();
+		const gamesQuery = 
+		`SELECT 
+		t1.twitter as team1_twitter, 
+		t2.twitter as team2_twitter 
+		FROM games 
+		JOIN teams t1 on team1_id=t1.id 
+		JOIN teams t2 on team2_id=t2.id
+		WHERE tournament_id = '${tournamentId}' AND start_time > '${earliestTime}'`;
+		var twitters = new Set();
 		await this.pool
 			.query(gamesQuery)
   			.then(res => {
 				for(const game of res.rows) {
-					teams.add(game.team1_id);
-					teams.add(game.team2_id);
+					twitters.add(game.team1_twitter);
+					twitters.add(game.team2_twitter);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
-		await this.addTwitters(teams);
+		await this.addTwitters(twitters);
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
 		const tournament_end = DateTime.fromISO(end_date, {zone: "America/New_York"}).plus({hours: 23, minutes: 59});
-		const job = scheduleJob(tournament_end.toJSDate(), async () => {
-			this.removeTwitters(teams);
+		const job = scheduleJob(tournament_end.toJSDate(), () => {
+			this.removeTwitters(twitters);
 		});
-		console.log(`remove tournament(${tournamentId}) twitters time`);
-		console.log(job.nextInvocation());
+		if(job) {
+			console.log(`remove tournament(${tournamentId}) twitters time`);
+			console.log(job.nextInvocation());
+		} else {
+			console.log(`remove tournament(${tournamentId}) twitters not scheduled properly, it the time in the past?`);
+		}
 	}
 
 	async scrapeTournament(tournament_id, tournament_end) {
@@ -95,8 +100,12 @@ class Scheduler {
 			const job = scheduleJob(updateDate.toJSDate(), () => {
 				this.scrapeTournament(tournament_id, tournament_end);
 			});
-			console.log(`update tournament(${tournament_id}) time`);
-			console.log(job.nextInvocation());
+			if(job) {
+				console.log(`update tournament(${tournament_id}) time`);
+				console.log(job.nextInvocation());
+			} else {
+				console.log(`update tournament(${tournament_id}) not scheduled properly, it the time in the past?`);
+			}
 		}
 		await this.initTournamentTwitters(tournament_id, tournament_end);
 	}
@@ -127,7 +136,7 @@ class Scheduler {
 	checkOngoingTournaments() {
 		const currentDate = DateTime.now().setZone("America/New_York").toSQLDate();
 		//for testing
-		//const currentDate = DateTime.utc(2023, 3, 24).toSQLDate();
+		//const currentDate = DateTime.utc(2023, 3, 4).toSQLDate();
 
 		const ongoingTournamentsQuery =
 		`SELECT 
