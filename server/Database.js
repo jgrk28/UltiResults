@@ -25,11 +25,13 @@ class Database {
         const upcomingQueryString = 
         `SELECT tournaments.*, division.division_name FROM tournaments 
         JOIN division ON tournaments.division_id=division.id 
-        WHERE start_date > '${currentDate}'`
+        WHERE start_date > '${currentDate}'
+        ORDER by start_date ASC`
         const pastQueryString = 
         `SELECT tournaments.*, division.division_name FROM tournaments 
         JOIN division ON tournaments.division_id=division.id 
-        WHERE end_date < '${currentDate}'`
+        WHERE end_date < '${currentDate}'
+        ORDER by start_date DESC`
 
         const currentTournamentsQuery = await client.query(currentQueryString);
         const upcomingTournamentsQuery = await client.query(upcomingQueryString);
