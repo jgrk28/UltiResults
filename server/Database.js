@@ -71,8 +71,7 @@ class Database {
                         JOIN teams ON team_id = teams.id 
                         WHERE time > '${gameTime.toSQL()}' AND
                         time < '${gameEnd.toSQL()}' AND
-                        (team_id = ${game.team1_id} OR 
-                        team_id = ${game.team2_id})
+                        game_id = ${game.id}
                         ORDER BY time DESC`;
                     const tweetsQuery = await client.query(tweetsQueryString);
                     const tweets = tweetsQuery.rows;

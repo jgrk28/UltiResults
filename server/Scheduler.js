@@ -58,8 +58,12 @@ class Scheduler {
 			.query(gamesQuery)
   			.then(res => {
 				for(const game of res.rows) {
-					twitters.add(game.team1_twitter);
-					twitters.add(game.team2_twitter);
+					if(game.team1_twitter) {
+						twitters.add(game.team1_twitter);
+					}
+					if(game.team2_twitter) {
+						twitters.add(game.team2_twitter);
+					}
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))

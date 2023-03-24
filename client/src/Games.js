@@ -6,22 +6,23 @@ import { Grid, Divider } from "semantic-ui-react";
 
 //React component to display a table of games and their tweets
 class Games extends React.Component {
-	getTweetStream = (game) => {
-		var tweetStreamData = [...game.tweets];
-    const gameTime = DateTime.fromISO(game.start_time, {zone: 'utc'});
+  getAllTweets = (game) => {
+    var allTweets = [...game.tweets];
 		this.props.tweets.forEach(function (tweet, i) {
       const username = tweet.includes.users[0].username;
-      const tweetTime = DateTime.fromISO(tweet.data.created_at, {zone: 'utc'});
-      // TODO For now just checking if it was in the last 90 minutes to see if the game is going on
-			if ((username === game.team1_twitter || username === game.team2_twitter) && tweetTime < gameTime.plus({minutes: 90}) && tweetTime > gameTime) {
-				tweetStreamData.unshift({
+			if (tweet.gameId === game.id) {
+				allTweets.unshift({
           twitter: username,
 					tweet: tweet.data.text,
 					id: tweet.data.id
 				});
 			}	
-
 		});
+    return allTweets
+  }
+  
+	getTweetStream = (game) => {
+		const tweetStreamData = this.getAllTweets(game);
 		return <TweetStream tweets={tweetStreamData}/>
 	}
 
@@ -33,7 +34,8 @@ class Games extends React.Component {
           //for testing only
           //const currTime = DateTime.utc(2023, 3, 4, 17);
           const gameTime = DateTime.fromISO(game.start_time);
-          return !this.props.liveFilter || (currTime < gameTime.plus({minutes: 90}) && currTime > gameTime)
+          return (!this.props.liveFilter || (currTime < gameTime.plus({minutes: 90}) && currTime > gameTime))
+            && (!this.props.hasTweetsFilter || this.getAllTweets(game).length > 0);
         }).map(game => {
           const gameTime = DateTime.fromISO(game.start_time);
           const displayTime = gameTime.toFormat('ccc h:mm a')

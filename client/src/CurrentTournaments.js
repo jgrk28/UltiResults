@@ -5,7 +5,7 @@ import Games from "./Games";
 
 //React component to display the current tournaments and their info
 class CurrentTournaments extends React.Component {
-  state = { activeArray: new Set(), liveFilter: true}
+  state = { activeArray: new Set(), liveFilter: true, hasTweetsFilter: false}
 
   //handle accordion click
   handleClick = (e, titleProps) => {
@@ -19,13 +19,24 @@ class CurrentTournaments extends React.Component {
   }
 
   //slider to filter live games only
-  buttonClick = () =>
+  liveToggleClick = () =>
     this.setState((prevState) => (
       { 
         activeArray: this.state.activeArray,
-        liveFilter: !prevState.liveFilter 
+        liveFilter: !prevState.liveFilter,
+        hasTweetsFilter: prevState.hasTweetsFilter 
       }
     ))
+
+    //slider to filter games that have tweets only
+  tweetsToggleClick = () =>
+  this.setState((prevState) => (
+    { 
+      activeArray: this.state.activeArray,
+      liveFilter: prevState.liveFilter,
+      hasTweetsFilter: !prevState.hasTweetsFilter 
+    }
+  ))
 
   render() {
     if (this.props.tournamentData.length === 0) {
@@ -40,9 +51,15 @@ class CurrentTournaments extends React.Component {
           <Checkbox 
             slider 
             checked={this.state.liveFilter} 
-            onClick={this.buttonClick} 
+            onClick={this.liveToggleClick} 
             label = "Live Only"
-            style={{paddingBottom: "1em"}}/>
+            style={{paddingBottom: "1em", paddingRight: "1em"}}/>
+          <Checkbox 
+            slider 
+            checked={this.state.hasTweetsFilter} 
+            onClick={this.tweetsToggleClick} 
+            label = "Must Have Tweets"
+            style={{paddingBottom: "1em", paddingRight: "1em"}}/>
           <Accordion fluid styled>
             {this.props.tournamentData.map((tournament, index) => {
               const startDate = DateTime.fromISO(tournament.start_date);
@@ -74,7 +91,11 @@ class CurrentTournaments extends React.Component {
                   </Grid>
               </Accordion.Title>
               <Accordion.Content active={this.state.activeArray.has(index)}>
-                <Games gamesData={tournament.games} tweets={this.props.tweets} liveFilter={this.state.liveFilter}/>
+                <Games 
+                  gamesData={tournament.games} 
+                  tweets={this.props.tweets} 
+                  liveFilter={this.state.liveFilter} 
+                  hasTweetsFilter={this.state.hasTweetsFilter}/>
               </Accordion.Content>
               </Fragment>
               )

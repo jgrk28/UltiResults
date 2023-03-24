@@ -228,8 +228,13 @@ class TwitterManager {
 							reconnect(stream);
 						} else {
 							if (json.data) {
-								this.socket.emit("tweet", json);
-								this.saveTweet(json);
+								//set gameId so that front end can access
+								this.getGameId(json)
+									.then((gameId)=> {
+										json.gameId = gameId;
+										this.socket.emit("tweet", json);
+										this.saveTweet(json);
+									})
 							} else {
 								this.socket.emit("authError", json);
 							}
@@ -323,30 +328,32 @@ class TwitterManager {
 		}
 	}
 
-	async saveTweet(tweet) {
-		//author_id is twitter defined
+	async getGameId(tweet) {
 		const author = tweet.includes.users[0].username;
 		const teamId = this.namesToId[author];
 		const tweetTime = tweet.data.created_at;
-		let gameId;
-
 		//For now hardcode ultiworld live as the only account that is not a team
 		//TODO update system to be able to handle more fan tweeters
 		if(author === 'Ultiworldlive') {
 			//if it is a reply, it is most likely from a thread
 			if(tweet.data.conversation_id != tweet.data.id) {
-				gameId = await this.parseThreadForGame(tweet.data.conversation_id, tweet.data.text, tweetTime)
+				return await this.parseThreadForGame(tweet.data.conversation_id, tweet.data.text, tweetTime)
 			} else {
-				gameId = await this.parseForGame(tweet.data.text, tweetTime);
+				return await this.parseForGame(tweet.data.text, tweetTime);
 			}
 		} else {
 			//Otherwise search for ongoing game where one of the teams is the tweeter
-			gameId = await this.findGame(teamId, tweetTime);
+			return await this.findGame(teamId, tweetTime);
 		}
+	}
 
+	async saveTweet(tweet) {
+		//author_id is twitter defined
+		const author = tweet.includes.users[0].username;
+		const teamId = this.namesToId[author];		
 
 		const insertQuery = `INSERT INTO tweets(id, team_id, game_id, time, tweet, root_tweet) VALUES($1, $2, $3, $4, $5, $6) RETURNING id`;
-		const insertValues = [tweet.data.id, teamId, gameId, tweet.data.created_at, tweet.data.text, tweet.data.conversation_id];
+		const insertValues = [tweet.data.id, teamId, tweet.gameId, tweet.data.created_at, tweet.data.text, tweet.data.conversation_id];
 		this.pool
 			.query(insertQuery, insertValues)
   			.catch(err => console.error('Error executing query', err.stack));
