@@ -15,24 +15,19 @@ class TwitterManager {
 		this.streamURL = 'https://api.twitter.com/2/tweets/search/stream';
 		this.timeout = 1;
 		this.namesToId = new Object();
-		this.getAllNames();
 	}
 
-	getAllNames() {
+	async getAllNames() {
 		const query = `SELECT id,usau_name,twitter FROM teams`;
-		this.pool
-			.query(query)
-			.then(res => {
-				for(const team of res.rows) {
-					if (team.usau_name) {
-						this.namesToId[team.usau_name] = team.id;
-					}
-					if (team.twitter) {
-						this.namesToId[team.twitter] = team.id;
-					}
-				}
-			})
-			.catch(err => console.error('Error executing query', err.stack));
+		const res = await this.pool.query(query);
+		for(const team of res.rows) {
+			if (team.usau_name) {
+				this.namesToId[team.usau_name] = team.id;
+			}
+			if (team.twitter) {
+				this.namesToId[team.twitter] = team.id;
+			}
+		}
 	}
 
 	addAccount(newAccount) {
@@ -249,7 +244,7 @@ class TwitterManager {
 					this.reconnect(stream);
 				});
 		} catch (e) {
-			this.socket.emit("authError", e);
+			console.log("twitter stream error", e);
 		}
 	}
 
@@ -259,7 +254,7 @@ class TwitterManager {
 		this.timeout++;
 		stream.abort();
 		//await sleep(2 ** this.timeout * 1000);
-		this.startStream(this.socket, this.token);
+		this.startStream();
 	}
 
 	//Return a team id if the team is mentioned by name or twitter in tweet
@@ -329,6 +324,9 @@ class TwitterManager {
 	}
 
 	async getGameId(tweet) {
+		if (Object.keys(this.namesToId).length == 0) {
+			await this.getAllNames();
+		}
 		const author = tweet.includes.users[0].username;
 		const teamId = this.namesToId[author];
 		const tweetTime = tweet.data.created_at;
@@ -349,10 +347,13 @@ class TwitterManager {
 
 	async saveTweet(tweet) {
 		//author_id is twitter defined
+		if (Object.keys(this.namesToId).length == 0) {
+			await this.getAllNames();
+		}
 		const author = tweet.includes.users[0].username;
-		const teamId = this.namesToId[author];		
+		const teamId = this.namesToId[author];
 
-		const insertQuery = `INSERT INTO tweets(id, team_id, game_id, time, tweet, root_tweet) VALUES($1, $2, $3, $4, $5, $6) RETURNING id`;
+		const insertQuery = `INSERT INTO tweets(id, team_id, game_id, time, tweet, root_tweet) VALUES($1, $2, $3, $4, $5, $6)`;
 		const insertValues = [tweet.data.id, teamId, tweet.gameId, tweet.data.created_at, tweet.data.text, tweet.data.conversation_id];
 		this.pool
 			.query(insertQuery, insertValues)
