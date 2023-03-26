@@ -13,7 +13,7 @@ class Controller {
 		  });
 		const token = process.env.BEARER_TOKEN;
 		const twitter = new TwitterManager(io, token, database.pool);
-		//twitter.addAccount('scores_ultimate');
+		twitter.addAccount('scores_ultimate');
 		//twitter.addAccount('Every3Minutes');
 		//Always add ultiworld live
 		twitter.addAccount('Ultiworldlive');

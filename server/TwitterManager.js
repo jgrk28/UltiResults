@@ -86,7 +86,7 @@ class TwitterManager {
 			console.log("no rule added");
 			return 0;
 		} else if (response.status !== 201) {
-			console.log("Error:", response.statusText, response.status)
+			console.error(`Error: ${response.statusText} ${response.status}`)
 			throw new Error(response.data);
 		}
 		
@@ -121,7 +121,7 @@ class TwitterManager {
 		})
 
 		if (response.status !== 201) {
-			console.log("Error:", response.statusText, response.status)
+			console.error(`Error deleting: ${response.statusText} ${response.status}`);
 			throw new Error(response.data);
 		}
 
@@ -139,7 +139,7 @@ class TwitterManager {
 		})
 	
 		if (getResponse.status !== 200) {
-			console.log("Error:", getResponse.statusText, getResponse.status)
+			console.error(`Error getting rules: ${getResponse.statusText} ${getResponse.status}`)
 			throw new Error(getResponse.data);
 		}
 	
@@ -165,10 +165,10 @@ class TwitterManager {
 		})
 	
 		if (postResponse.status !== 200) {
-			console.log("Error:", postResponse.statusText, postResponse.status)
+			console.error(`Error deleting all: ${postResponse.statusText} ${postResponse.status}`)
 			throw new Error(postResponse.data);
 		} else {
-			console.log("rule all successfully deleted");
+			console.log("rules all successfully deleted");
 		}
 	
 		return (postResponse.data);
@@ -219,7 +219,7 @@ class TwitterManager {
 					try {
 						const json = JSON.parse(data);
 						if (json.connection_issue) {
-							this.socket.emit("error", json);
+							console.log("connection issue" + JSON.stringify(json));
 							reconnect(stream);
 						} else {
 							if (json.data) {
@@ -231,7 +231,7 @@ class TwitterManager {
 										this.saveTweet(json);
 									})
 							} else {
-								this.socket.emit("authError", json);
+								console.error("authError" + JSON.stringify(json));
 							}
 						}
 					} catch (e) {
@@ -240,11 +240,11 @@ class TwitterManager {
 				})
 				.on("error", (error) => {
 					// Connection timed out
-					this.socket.emit("error", error);
+					console.error("stream error: " + error);
 					this.reconnect(stream);
 				});
 		} catch (e) {
-			console.log("twitter stream error", e);
+			console.error("start stream error: " + e);
 		}
 	}
 
@@ -253,7 +253,7 @@ class TwitterManager {
 		console.log("attempting to reconnect");
 		this.timeout++;
 		stream.abort();
-		//await sleep(2 ** this.timeout * 1000);
+		await new Promise(r => setTimeout(r, this.timeout * 1000));
 		this.startStream();
 	}
 
@@ -276,13 +276,17 @@ class TwitterManager {
 			WHERE (team1_id=${teamId} OR team2_id=${teamId})
 			AND ((start_time - interval '7 Minutes') < '${tweetTime}' 
 				AND (start_time + interval '90 Minutes') > '${tweetTime}')`;
-		const res = await this.pool.query(query);
-		if (res.rows.length == 0) {
-			return null;
-		} else {
-			//Assume only one game falls in the time range
-			//TODO fix assumption
-			return res.rows[0].id;
+		try {
+			const res = await this.pool.query(query);
+			if (res.rows.length == 0) {
+				return null;
+			} else {
+				//Assume only one game falls in the time range
+				//TODO fix assumption
+				return res.rows[0].id;
+			}
+		} catch (error) {
+			console.error(`Error executing query: ${query} \nError: ${error}`);
 		}
 	}
 
@@ -302,24 +306,28 @@ class TwitterManager {
 		const tweetQuery = 
 		`SELECT game_id FROM tweets 
 		WHERE id=${conversationId}`;
-		const res = await this.pool.query(tweetQuery);
-		if (res.rows.length == 0) {
-			return null;
-		} else if (res.rows[0].game_id) {
-			return res.rows[0].game_id;{
-		}
-		} else {
-		//Thread exists but has not yet been assigned to a game
-			let gameId = await this.parseForGame(tweetText, tweetTime);
-			if (gameId) {
-				//Set all tweets for this thread to the game found
-				//TODO tell socket that frontend should grab tweets again
-				const updateQuery = 
-				`UPDATE tweets SET game_id=${gameId}
-				WHERE root_tweet=${conversationId}`;
-				await this.pool.query(updateQuery)
+		try {
+			const res = await this.pool.query(tweetQuery);
+			if (res.rows.length == 0) {
+				return null;
+			} else if (res.rows[0].game_id) {
+				return res.rows[0].game_id;{
 			}
-			return gameId;
+			} else {
+			//Thread exists but has not yet been assigned to a game
+				let gameId = await this.parseForGame(tweetText, tweetTime);
+				if (gameId) {
+					//Set all tweets for this thread to the game found
+					//TODO tell socket that frontend should grab tweets again
+					const updateQuery = 
+					`UPDATE tweets SET game_id=${gameId}
+					WHERE root_tweet=${conversationId}`;
+					await this.pool.query(updateQuery)
+				}
+				return gameId;
+			}
+		} catch (error) {
+			console.error(`Error executing query: ${tweetQuery} \nError: ${error}`);
 		}
 	}
 
@@ -332,7 +340,7 @@ class TwitterManager {
 		const tweetTime = tweet.data.created_at;
 		//For now hardcode ultiworld live as the only account that is not a team
 		//TODO update system to be able to handle more fan tweeters
-		if(author === 'Ultiworldlive') {
+		if(author === 'Ultiworldlive' || author === 'scores_ultimate') {
 			//if it is a reply, it is most likely from a thread
 			if(tweet.data.conversation_id != tweet.data.id) {
 				return await this.parseThreadForGame(tweet.data.conversation_id, tweet.data.text, tweetTime)
@@ -357,7 +365,7 @@ class TwitterManager {
 		const insertValues = [tweet.data.id, teamId, tweet.gameId, tweet.data.created_at, tweet.data.text, tweet.data.conversation_id];
 		this.pool
 			.query(insertQuery, insertValues)
-  			.catch(err => console.error('Error executing query', err.stack));
+  			.catch(err => console.error(`Error executing query: ${insertQuery} \nError: ${err}`));
 	}
 };
 
