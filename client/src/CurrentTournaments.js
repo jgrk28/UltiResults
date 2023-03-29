@@ -1,11 +1,12 @@
 import React, { Fragment } from "react";
-import { Accordion, Checkbox, Grid, Icon } from 'semantic-ui-react'
+import { Accordion, Checkbox, Segment, Grid, Icon } from 'semantic-ui-react'
 import { DateTime } from 'luxon';
 import Games from "./Games";
 
 //React component to display the current tournaments and their info
 class CurrentTournaments extends React.Component {
-  state = { activeArray: new Set(), liveFilter: true, hasTweetsFilter: false}
+  //TODO add cookie to keep starred games after reload
+  state = { activeArray: new Set(), starredGames: new Set(), liveFilter: true, hasTweetsFilter: false }
 
   //handle accordion click
   handleClick = (e, titleProps) => {
@@ -19,24 +20,21 @@ class CurrentTournaments extends React.Component {
   }
 
   //slider to filter live games only
-  liveToggleClick = () =>
-    this.setState((prevState) => (
-      { 
-        activeArray: this.state.activeArray,
-        liveFilter: !prevState.liveFilter,
-        hasTweetsFilter: prevState.hasTweetsFilter 
-      }
-    ))
+  liveToggleClick = () => this.setState({liveFilter: !this.state.liveFilter})
 
-    //slider to filter games that have tweets only
-  tweetsToggleClick = () =>
-  this.setState((prevState) => (
-    { 
-      activeArray: this.state.activeArray,
-      liveFilter: prevState.liveFilter,
-      hasTweetsFilter: !prevState.hasTweetsFilter 
+  //slider to filter games that have tweets only
+  tweetsToggleClick = () => this.setState({hasTweetsFilter: !this.state.hasTweetsFilter})
+
+  //slider to filter games that have tweets only
+  starClick = (e, gameId) => {
+    if (this.state.starredGames.has(gameId)) {
+      //remove from array then reset modified array as state
+      this.state.starredGames.delete(gameId)
+      this.setState({ starredGames: this.state.starredGames})
+    } else {
+      this.setState({ starredGames: this.state.starredGames.add(gameId) })
     }
-  ))
+  }
 
   render() {
     if (this.props.tournamentData.length === 0) {
@@ -46,6 +44,27 @@ class CurrentTournaments extends React.Component {
         </div>
       )
     } else {
+      const starredGameData = [];
+      for (const tournament of this.props.tournamentData) {
+        for (const game of tournament.games) {
+          if (this.state.starredGames.has(game.id)) {
+            starredGameData.push(game);
+          }
+        }
+      }
+      //TODO deal with case where this is an old game in starred but live filter is on
+      const starredGamesSegment = starredGameData.length === 0 ? 
+      <Segment> Star games to add them to this section </Segment> : 
+      <Segment>
+       <Games 
+           gamesData={starredGameData} 
+           tweets={this.props.tweets} 
+           liveFilter={this.state.liveFilter} 
+           hasTweetsFilter={this.state.hasTweetsFilter}
+           starClick={this.starClick}
+           starredGames={this.state.starredGames}/>
+     </Segment>
+
       return (
         <Fragment>
           <Checkbox 
@@ -60,6 +79,9 @@ class CurrentTournaments extends React.Component {
             onClick={this.tweetsToggleClick} 
             label = "Must Have Tweets"
             style={{paddingBottom: "1em", paddingRight: "1em"}}/>
+
+          {starredGamesSegment}
+          
           <Accordion fluid styled>
             {this.props.tournamentData.map((tournament, index) => {
               const startDate = DateTime.fromISO(tournament.start_date);
@@ -95,7 +117,9 @@ class CurrentTournaments extends React.Component {
                   gamesData={tournament.games} 
                   tweets={this.props.tweets} 
                   liveFilter={this.state.liveFilter} 
-                  hasTweetsFilter={this.state.hasTweetsFilter}/>
+                  hasTweetsFilter={this.state.hasTweetsFilter}
+                  starClick={this.starClick}
+                  starredGames={this.state.starredGames}/>
               </Accordion.Content>
               </Fragment>
               )

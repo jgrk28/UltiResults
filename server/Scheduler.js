@@ -26,53 +26,36 @@ class Scheduler {
 		return this.twitterHandles.get(teamId);
 	}
 
-	// TODO maybe more efficient to pass in accounts instead of ids
-	async addTwitters(accounts) {
-		for (const account of accounts) {
-			this.twitter.addAccount(account);
-		}
-		await this.twitter.updateRules();
-	}
-
-	async removeTwitters(accounts) {
-		for (const account of accounts) {
-			this.twitter.removeAccount(account);
-		}
-		await this.twitter.updateRules();
-	}
-
 	async initTournamentTwitters(tournamentId, end_date) {
 		//Follow all games that are playing now or in this tournament in the future
 		// TODO make a better guess if the game is still going on
 		const earliestTime = DateTime.now().minus({minutes: 90}).toSQL();
 		const gamesQuery = 
-		`SELECT 
+		`SELECT
+		games.id as id,
 		t1.twitter as team1_twitter, 
 		t2.twitter as team2_twitter 
 		FROM games 
 		JOIN teams t1 on team1_id=t1.id 
 		JOIN teams t2 on team2_id=t2.id
 		WHERE tournament_id = '${tournamentId}' AND start_time > '${earliestTime}'`;
-		var twitters = new Set();
+		var gameIds = new Set();
 		await this.pool
 			.query(gamesQuery)
   			.then(res => {
 				for(const game of res.rows) {
-					if(game.team1_twitter) {
-						twitters.add(game.team1_twitter);
-					}
-					if(game.team2_twitter) {
-						twitters.add(game.team2_twitter);
-					}
+					this.twitter.addGame(game.id, game.team1_twitter, game.team2_twitter);
+					gameIds.add(game.id);
 				}
 			})
   			.catch(err => console.error('Error executing query', err.stack))
-		await this.addTwitters(twitters);
+		await this.twitter.updateRules();
 
 		// Assumption here is that teams will not start another tournament before this tournament is over
 		const tournament_end = DateTime.fromISO(end_date, {zone: "America/New_York"}).plus({hours: 23, minutes: 59});
-		const job = scheduleJob(tournament_end.toJSDate(), () => {
-			this.removeTwitters(twitters);
+		const job = scheduleJob(tournament_end.toJSDate(), async () => {
+			this.removeGames(gameIds);
+			await this.twitter.updateRules();
 		});
 		if(job) {
 			console.log(`remove tournament(${tournamentId}) twitters time`);

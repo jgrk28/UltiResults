@@ -1,5 +1,13 @@
 const axios = require('axios');
 const Qs = require('qs');
+const Parser = require('./Parser');
+
+class Game {
+    constructor(team1_twitter, team2_twitter) {
+		this.team1_twitter = team1_twitter;
+        this.team2_twitter = team2_twitter;
+    }
+}
 
 // Manages the twitter stream by adding and removing accounts
 // Emits all recived tweets on the socket given in the constructor
@@ -8,7 +16,7 @@ class TwitterManager {
 		this.socket = socket;
 		this.token = token;
 		this.pool = pool;
-		this.accounts = new Set();
+		this.games = new Map();
 		this.ruleId = 0;
 		// these should be static variable but that is giving an error
 		this.rulesURL = 'https://api.twitter.com/2/tweets/search/stream/rules';
@@ -30,12 +38,18 @@ class TwitterManager {
 		}
 	}
 
-	addAccount(newAccount) {
-		this.accounts.add(newAccount);
+	addGame(gameId, twitter1, twitter2) {
+		this.games.set(gameId, new Game(twitter1, twitter2));
 	}
 
-	removeAccount(toRemove) {
-		this.accounts.delete(toRemove);
+	removeGame(gameId) {
+		this.games.delete(gameId);
+	}
+
+	removeGames(gameIds) {
+		gameIds.forEach((gameId) => {
+			this.removeGame(gameId);
+		})
 	}
 
 	// builds rules to track all tweets from all accounts in this.accounts
@@ -43,8 +57,14 @@ class TwitterManager {
 		let ruleValues = [];
 		let charCount = 0;
 		let ruleValue = "";
+
+		let accounts = new Set()
+		for (const game of this.games.values()) {
+			accounts.add(game.team1_twitter);
+			accounts.add(game.team2_twitter);
+		}
 		//loop through all the accounts to put them in a rule
-		this.accounts.forEach((account) => {
+		accounts.forEach((account) => {
 			charCount += 9;
 			charCount += account.length;
 			//if we are mid rule and have not reached the character limit
@@ -174,7 +194,7 @@ class TwitterManager {
 		return (postResponse.data);
 	}
 
-	// updates the streaming rules based on the current contents of this.accounts
+	// updates the streaming rules based on the current contents of this.games
 	async updateRules() {
 		
 		// make new rules
@@ -225,8 +245,25 @@ class TwitterManager {
 							if (json.data) {
 								//set gameId so that front end can access
 								this.getGameId(json)
-									.then((gameId)=> {
-										json.gameId = gameId;
+									.then(gameId => {
+										console.log(this.games)
+										if(gameId !== null) {
+											const game = this.games.get(gameId);
+											const tweeter = json.includes.users[0].username;
+											let score = null;
+											if (tweeter === game.team1_twitter) {
+												score = Parser.parseScore(json.data.text, true)
+											} else if (tweeter === game.team2_twitter) {
+												score = Parser.parseScore(json.data.text, false)
+											} else {
+												//Must be an ultiworld tweet
+												if (tweeter != "Ultiworldlive") {
+													console.log(`Tweeter ${tweeter} not in this game`)
+												}
+											}
+											json.gameId = gameId;
+											json.score = score;
+										}
 										this.socket.emit("tweet", json);
 										this.saveTweet(json);
 									})

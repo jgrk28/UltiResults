@@ -13,10 +13,8 @@ class Controller {
 		  });
 		const token = process.env.BEARER_TOKEN;
 		const twitter = new TwitterManager(io, token, database.pool);
-		twitter.addAccount('scores_ultimate');
-		//twitter.addAccount('Every3Minutes');
 		//Always add ultiworld live
-		twitter.addAccount('Ultiworldlive');
+		twitter.addGame(0, 'Ultiworldlive', 'scores_ultimate');
 		await twitter.startStream();
 		const scraper = new WebScraper(database.pool);
 		const scheduler = new Scheduler(twitter, scraper, database.pool);

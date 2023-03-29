@@ -1,5 +1,6 @@
 const { Pool } = require('pg');
 const { DateTime } = require('luxon');
+const Parser = require('./Parser')
 
 // Manages the postgresql database
 class Database {
@@ -74,11 +75,30 @@ class Database {
                         WHERE time > '${gameTime.toSQL()}' AND
                         time < '${gameEnd.toSQL()}' AND
                         game_id = ${game.id}
-                        ORDER BY time DESC`;
+                        ORDER BY time ASC`;
                     const tweetsQuery = await client.query(tweetsQueryString);
                     const tweets = tweetsQuery.rows;
-                    games[j].tweets = tweets;
+                    //Attach a score to each game, game.team1_score will be the score of team1 at the final tweet
+                    for (let tweet of tweets) {
+                        let score = null;
+                        console.log(tweet.tweet)
+                        if (tweet.team_id === game.team1_id) {
+                            score = Parser.parseScore(tweet.tweet, true);
+                        } else if (tweet.team_id === game.team2_id) {
+                            score = Parser.parseScore(tweet.tweet, false);
+                        } else {
+                            //Must be an ultiworld tweet
+                            if (tweet.team_id != 3) {
+                                console.log(`Tweeter ${tweet.team_id} not in this game`)
+                            }
+                        }
+                        if (score != null) {
+                            game.team1_score = score.team1Score;
+                            game.team2_score = score.team2Score;
+                        }
                     }
+                    games[j].tweets = tweets;
+                }
                 //Insert games into current tournaments json
                 tournamentList[i].games = games;
             }
