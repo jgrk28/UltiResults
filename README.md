@@ -1,4 +1,4 @@
-# ultiResults
+# Frisbee Results
 ### Purpose
 Webapp to display live tweeted results for ultimate frisbee tournaments.
 

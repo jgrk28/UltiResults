@@ -1,13 +1,10 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { io } from "socket.io-client";
 import 'semantic-ui-css/semantic.min.css'
 import { Container, Header } from 'semantic-ui-react'
 
-import Navbar from "./Navbar";
-import CurrentTournaments from "./CurrentTournaments";
-import UpcomingTournaments from "./UpcomingTournaments";
-import PastTournaments from "./PastTournaments";
+
+import MainMenu from "./MainMenu";
 
 
 class App extends React.Component {
@@ -70,7 +67,7 @@ class App extends React.Component {
       return (
         <Container>
           <Header as="h1" style={{paddingTop: "1em"}}>
-            UltiResults
+            Frisbee Results
             <Header.Subheader>Powered by Live Tweets</Header.Subheader>
               Please wait for data
           </Header>
@@ -80,33 +77,15 @@ class App extends React.Component {
     return (
       <Container>
         <Header as="h1" style={{paddingTop: "1em"}}>
-          UltiResults
+          Frisbee Results
           <Header.Subheader>Powered by Live Tweets</Header.Subheader>
         </Header>
 
-        <BrowserRouter>
-          <Navbar />
-          <Routes>
-            <Route path="/" element=
-              {<CurrentTournaments 
-                tournamentData = {this.state.tournamentData.current}
-                tweets = {this.state.newTweets}
-              />}
-            />
-            <Route path="/current" element=
-              {<CurrentTournaments 
-                tournamentData = {this.state.tournamentData.current}
-                tweets = {this.state.newTweets}
-              />}
-            />
-            <Route path="/upcoming" element=
-              {<UpcomingTournaments tournamentData = {this.state.tournamentData.upcoming}  />}
-            />
-            <Route path="/past" element=
-              {<PastTournaments tournamentData = {this.state.tournamentData.past}  />}
-            />
-          </Routes>
-        </BrowserRouter>
+        <MainMenu
+          tournamentData = {this.state.tournamentData}
+          tweets = {this.state.newTweets}
+        />
+
       </Container>
     );
   }

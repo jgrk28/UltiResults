@@ -31,7 +31,8 @@ class Database {
         const pastQueryString = 
         `SELECT tournaments.*, division.division_name FROM tournaments 
         JOIN division ON tournaments.division_id=division.id 
-        WHERE end_date < '${currentDate}'
+        WHERE end_date < '${currentDate}' AND 
+        do_stream = TRUE
         ORDER by start_date DESC`
 
         const currentTournamentsQuery = await client.query(currentQueryString);

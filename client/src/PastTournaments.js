@@ -36,25 +36,25 @@ class PastTournaments extends React.Component {
               style={{color: "black"}}
             >
               <Grid>
-                <Grid.Column width={5}>
+                <Grid.Column mobile={10} tablet={5} computer={5}>
                   <Icon name='dropdown'/>
                   {tournament.name}
                 </Grid.Column>
-                <Grid.Column width={4}>
-                      {tournament.division_name}
-                    </Grid.Column>
-                <Grid.Column width={4}>
+                <Grid.Column only='tablet computer' tablet={5} computer={5}>
                   {tournament.location}
                 </Grid.Column>
-                <Grid.Column width={3} textAlign="right">
+                <Grid.Column only='tablet computer' tablet={3} computer={3}>
+                  {tournament.division_name}
+                </Grid.Column>
+                <Grid.Column textAlign="right" mobile={6} tablet={3} computer={3}>
                   {startFormat} - {endFormat}
                 </Grid.Column>
               </Grid>
-          </Accordion.Title>
-          <Accordion.Content active={this.state.activeArray.has(index)}>
-            <Games gamesData={tournament.games} tweets={[]} liveFilter={false}/>
-          </Accordion.Content>
-          </Fragment>
+            </Accordion.Title>
+            <Accordion.Content active={this.state.activeArray.has(index)}>
+              <Games gamesData={tournament.games} tweets={[]} liveFilter={false}/>
+            </Accordion.Content>
+            </Fragment>
           )
         })}
       </Accordion>

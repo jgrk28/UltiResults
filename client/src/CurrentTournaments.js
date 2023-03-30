@@ -1,5 +1,5 @@
 import React, { Fragment } from "react";
-import { Accordion, Checkbox, Segment, Grid, Icon } from 'semantic-ui-react'
+import { Accordion, Checkbox, Container, Divider, Grid, Icon } from 'semantic-ui-react'
 import { DateTime } from 'luxon';
 import Games from "./Games";
 
@@ -54,8 +54,8 @@ class CurrentTournaments extends React.Component {
       }
       //TODO deal with case where this is an old game in starred but live filter is on
       const starredGamesSegment = starredGameData.length === 0 ? 
-      <Segment> Star games to add them to this section </Segment> : 
-      <Segment>
+      <Container> Star games to add them to this section </Container> : 
+      <Container>
        <Games 
            gamesData={starredGameData} 
            tweets={this.props.tweets} 
@@ -63,7 +63,7 @@ class CurrentTournaments extends React.Component {
            hasTweetsFilter={this.state.hasTweetsFilter}
            starClick={this.starClick}
            starredGames={this.state.starredGames}/>
-     </Segment>
+     </Container>
 
       return (
         <Fragment>
@@ -80,8 +80,19 @@ class CurrentTournaments extends React.Component {
             label = "Must Have Tweets"
             style={{paddingBottom: "1em", paddingRight: "1em"}}/>
 
-          {starredGamesSegment}
-          
+          <Accordion styled fluid>
+            <Accordion.Title
+              active={true}
+              index={-1}
+              style={{color: "black"}}
+            >
+              Starred Games
+            </Accordion.Title>
+            <Accordion.Content active={true}>
+              {starredGamesSegment}
+            </Accordion.Content>
+          </Accordion>
+          <Divider></Divider>
           <Accordion fluid styled>
             {this.props.tournamentData.map((tournament, index) => {
               const startDate = DateTime.fromISO(tournament.start_date);
@@ -97,32 +108,32 @@ class CurrentTournaments extends React.Component {
                   style={{color: "black"}}
                 >
                   <Grid>
-                    <Grid.Column width={5}>
+                    <Grid.Column mobile={10} tablet={5} computer={5}>
                       <Icon name='dropdown'/>
                       {tournament.name}
                     </Grid.Column>
-                    <Grid.Column width={4}>
-                      {tournament.division_name}
-                    </Grid.Column>
-                    <Grid.Column width={4}>
+                    <Grid.Column only='tablet computer' tablet={5} computer={5}>
                       {tournament.location}
                     </Grid.Column>
-                    <Grid.Column width={3} textAlign="right">
+                    <Grid.Column only='tablet computer' tablet={3} computer={3}>
+                      {tournament.division_name}
+                    </Grid.Column>
+                    <Grid.Column textAlign="right" mobile={6} tablet={3} computer={3}>
                       {startFormat} - {endFormat}
                     </Grid.Column>
                   </Grid>
-              </Accordion.Title>
-              <Accordion.Content active={this.state.activeArray.has(index)}>
-                <Games 
-                  gamesData={tournament.games} 
-                  tweets={this.props.tweets} 
-                  liveFilter={this.state.liveFilter} 
-                  hasTweetsFilter={this.state.hasTweetsFilter}
-                  starClick={this.starClick}
-                  starredGames={this.state.starredGames}/>
-              </Accordion.Content>
-              </Fragment>
-              )
+                </Accordion.Title>
+                <Accordion.Content active={this.state.activeArray.has(index)}>
+                  <Games 
+                    gamesData={tournament.games} 
+                    tweets={this.props.tweets} 
+                    liveFilter={this.state.liveFilter} 
+                    hasTweetsFilter={this.state.hasTweetsFilter}
+                    starClick={this.starClick}
+                    starredGames={this.state.starredGames}/>
+                </Accordion.Content>
+                </Fragment>
+                )
             })}
           </Accordion>
         </Fragment>

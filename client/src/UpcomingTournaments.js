@@ -19,21 +19,21 @@ class UpcomingTournaments extends React.Component {
               style={{cursor: "default"}}
             >
               <Grid>
-                <Grid.Column width={5}>
+                <Grid.Column mobile={10} tablet={5} computer={5}>
                   {tournament.name}
                 </Grid.Column>
-                <Grid.Column width={4}>
-                  {tournament.division_name}
-                </Grid.Column>
-                <Grid.Column width={4}>
+                <Grid.Column only='tablet computer' tablet={5} computer={5}>
                   {tournament.location}
                 </Grid.Column>
-                <Grid.Column width={3} textAlign="right">
+                <Grid.Column only='tablet computer' tablet={3} computer={3}>
+                  {tournament.division_name}
+                </Grid.Column>
+                <Grid.Column textAlign="right" mobile={6} tablet={3} computer={3}>
                   {startFormat} - {endFormat}
                 </Grid.Column>
               </Grid>
-          </Accordion.Title>
-          </Fragment>
+            </Accordion.Title>
+            </Fragment>
           )
         })}
       </Accordion>
