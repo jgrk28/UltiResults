@@ -26,5 +26,4 @@ FROM nginx:1.23.1-alpine
 # Expose port
 EXPOSE $CLIENT_DOCKER_PORT
 
-COPY ./docker/nginx/conf.d/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/client/build /usr/share/nginx/html

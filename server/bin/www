@@ -31,7 +31,12 @@ var server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      "http://54.95.21.214",
+      "http://52.69.100.53",
+      "http://frisbeeresults.live",
+      "http://www.frisbeeresults.live",
+      "https://52.69.100.53",
+      "https://frisbeeresults.live",
+      "https://www.frisbeeresults.live",
       "http://localhost",
       "http://localhost:3000",
     ],

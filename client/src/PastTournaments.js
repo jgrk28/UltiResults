@@ -52,7 +52,12 @@ class PastTournaments extends React.Component {
               </Grid>
             </Accordion.Title>
             <Accordion.Content active={this.state.activeArray.has(index)}>
-              <Games gamesData={tournament.games} tweets={[]} liveFilter={false}/>
+              <Games gamesData={tournament.games} 
+                    tweets={this.props.tweets} 
+                    liveFilter={false} 
+                    hasTweetsFilter={false}
+                    starClick={false}
+                    starredGames={new Set()}/>
             </Accordion.Content>
             </Fragment>
           )
