@@ -60,8 +60,12 @@ class TwitterManager {
 
 		let accounts = new Set()
 		for (const game of this.games.values()) {
-			accounts.add(game.team1_twitter);
-			accounts.add(game.team2_twitter);
+			if (game.team1_twitter) {
+				accounts.add(game.team1_twitter);
+			}
+			if (game.team2_twitter) {
+				accounts.add(game.team2_twitter);
+			}
 		}
 		//loop through all the accounts to put them in a rule
 		accounts.forEach((account) => {
