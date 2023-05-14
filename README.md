@@ -7,7 +7,7 @@ Instead fans rely on following different teams live tweets to get updates about 
 The goal of this webapp is to compile and organize the live tweets of all the teams that are playing to constuct a live scorecard.
 
 ### Technology
-The webapp server side is built with Postgres, NodeJS, Express, EC2.
-The frontend is a React App getting live updates from WebSockets.
-The webapp scrapes data from https://usaultimate.org/ to get the schedule of tournaments and games.
-Then uses the twitter API to stream the tweets from the currently playing teams.
+- The webapp server side is built with Postgres, NodeJS, Express, EC2.
+- The frontend is a React App getting live updates from WebSockets.
+- The webapp scrapes data from https://usaultimate.org/ to get the schedule of tournaments and games.
+- Then uses the twitter API to stream the tweets from the currently playing teams.
